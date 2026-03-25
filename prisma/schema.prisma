@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DomainType {
+  SUBDOMAIN
+  CUSTOM
+}
+
+enum BillingStatus {
+  INACTIVE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum CheckoutStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+  tenants      Tenant[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Plan {
+  id           String   @id
+  name         String
+  pieceLimit   Int?
+  monthlyPrice Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenants                Tenant[]
+  billingCheckoutSession BillingCheckoutSession[]
+}
+
+model Tenant {
+  id           String    @id @default(cuid())
+  ownerUserId  String
+  planId       String
+  name         String
+  slug         String    @unique
+  bio          String?
+  contactEmail String
+  socialLinks  String?
+  theme        String?
+  tenantCode   String    @unique
+  published    Boolean   @default(false)
+  publishedUrl String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  owner            User                     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  plan             Plan                     @relation(fields: [planId], references: [id])
+  pieces           Piece[]
+  domains          Domain[]
+  apiKeys          ApiKey[]
+  billingAccount   BillingAccount?
+  checkoutSessions BillingCheckoutSession[]
+
+  @@index([ownerUserId])
+  @@index([planId])
+}
+
+model Piece {
+  id          String   @id @default(cuid())
+  tenantId    String
+  title       String
+  slug        String
+  description String?
+  year        Int?
+  category    String?
+  images      String?
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([published])
+}
+
+model Domain {
+  id         String     @id @default(cuid())
+  tenantId   String
+  type       DomainType
+  hostname   String     @unique
+  verified   Boolean    @default(false)
+  isPrimary  Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([type])
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  tenantId   String
+  keyHash    String    @unique
+  keyPreview String
+  label      String?
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model BillingAccount {
+  id                   String        @id @default(cuid())
+  tenantId             String        @unique
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  status               BillingStatus @default(INACTIVE)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model BillingCheckoutSession {
+  id              String         @id @default(cuid())
+  tenantId        String
+  targetPlanId    String
+  provider        String
+  providerRef     String
+  status          CheckoutStatus @default(PENDING)
+  checkoutUrl     String
+  createdAt       DateTime       @default(now())
+  completedAt     DateTime?
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  targetPlan Plan   @relation(fields: [targetPlanId], references: [id])
+
+  @@index([tenantId])
+  @@index([status])
+}
