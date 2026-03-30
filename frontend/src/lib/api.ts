@@ -148,13 +148,13 @@ type UploadImageOptions = {
 
 export async function uploadImage(file: File, options?: UploadImageOptions): Promise<UploadedImage> {
   const formData = new FormData();
-  formData.append("file", file);
   if (options?.tenantId) {
     formData.append("tenantId", options.tenantId);
   }
   if (options?.tenantSlug) {
     formData.append("tenantSlug", options.tenantSlug);
   }
+  formData.append("file", file);
 
   const response = await fetch(`${API_BASE_URL}/uploads/images`, {
     method: "POST",

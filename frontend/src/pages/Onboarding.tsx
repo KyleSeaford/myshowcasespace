@@ -52,6 +52,27 @@ function isValidEmail(value: string): boolean {
   return /^\S+@\S+\.\S+$/.test(value);
 }
 
+function normalizeSocialUrl(value: string, baseUrl: string): string {
+  const trimmed = value.trim();
+  const baseWithSlash = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  const baseWithoutSlash = baseWithSlash.replace(/\/$/, "");
+
+  if (!trimmed || trimmed === baseWithSlash || trimmed === baseWithoutSlash) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const normalizedHandle = trimmed.replace(/^@+/, "").replace(/^\/+/, "");
+  if (!normalizedHandle) {
+    return "";
+  }
+
+  return `${baseWithSlash}${normalizedHandle}`;
+}
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
@@ -69,9 +90,9 @@ const Onboarding = () => {
     contactEmail: "",
     location: "",
     waysToWorkTogether: "",
-    instagram: "",
-    twitter: "",
-    pinterest: "",
+    instagram: "https://www.instagram.com/",
+    twitter: "https://x.com/",
+    pinterest: "https://www.pinterest.com/",
     adminPassword: "",
     confirmAdminPassword: ""
   });
@@ -200,9 +221,13 @@ const Onboarding = () => {
 
     try {
       const socialLinks: Record<string, string> = {};
-      if (form.instagram.trim()) socialLinks.instagram = form.instagram.trim();
-      if (form.twitter.trim()) socialLinks.twitter = form.twitter.trim();
-      if (form.pinterest.trim()) socialLinks.pinterest = form.pinterest.trim();
+      const instagramUrl = normalizeSocialUrl(form.instagram, "https://www.instagram.com/");
+      const twitterUrl = normalizeSocialUrl(form.twitter, "https://x.com/");
+      const pinterestUrl = normalizeSocialUrl(form.pinterest, "https://www.pinterest.com/");
+
+      if (instagramUrl) socialLinks.instagram = instagramUrl;
+      if (twitterUrl) socialLinks.twitter = twitterUrl;
+      if (pinterestUrl) socialLinks.pinterest = pinterestUrl;
 
       const tenantResult = await createTenant({
         name: form.name.trim(),
@@ -451,7 +476,7 @@ const Onboarding = () => {
                         id="instagram"
                         value={form.instagram}
                         onChange={(event) => setForm((previous) => ({ ...previous, instagram: event.target.value }))}
-                        placeholder="https://instagram.com/username"
+                        placeholder="username"
                       />
                     </div>
 
@@ -486,7 +511,7 @@ const Onboarding = () => {
                         id="twitter"
                         value={form.twitter}
                         onChange={(event) => setForm((previous) => ({ ...previous, twitter: event.target.value }))}
-                        placeholder="https://x.com/username"
+                        placeholder="username"
                       />
                     </div>
 
@@ -496,7 +521,7 @@ const Onboarding = () => {
                         id="pinterest"
                         value={form.pinterest}
                         onChange={(event) => setForm((previous) => ({ ...previous, pinterest: event.target.value }))}
-                        placeholder="https://pinterest.com/username"
+                        placeholder="username"
                       />
                     </div>
                   </>
