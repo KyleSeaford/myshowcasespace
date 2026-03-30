@@ -5,6 +5,7 @@ import { requireAuth, requireOwnedTenant } from "../lib/guards.js";
 import { newApiKey, newTenantCode } from "../lib/crypto.js";
 import { env } from "../config/env.js";
 import { parseJson, toJsonString } from "../lib/json.js";
+import { hashPassword } from "../lib/auth.js";
 
 const socialLinksSchema = z.record(z.string().min(1).max(80), z.string().max(1000));
 
@@ -15,6 +16,7 @@ const tenantCreateSchema = z.object({
   slug: z.string().regex(/^[a-z0-9-]{3,40}$/),
   bio: z.string().max(1000).optional(),
   contactEmail: z.string().email(),
+  adminPassword: z.string().min(4).max(128),
   socialLinks: socialLinksSchema.optional(),
   theme: themeSchema.optional()
 });
@@ -23,6 +25,7 @@ const tenantUpdateSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   bio: z.string().max(1000).nullable().optional(),
   contactEmail: z.string().email().optional(),
+  adminPassword: z.string().min(4).max(128).optional(),
   socialLinks: socialLinksSchema.optional(),
   theme: themeSchema.optional()
 });
@@ -49,11 +52,46 @@ async function allocateTenantCode(app: FastifyInstance): Promise<string> {
   throw new Error("Unable to allocate tenant code");
 }
 
-function serializeTenant<T extends { socialLinks: string | null; theme: string | null }>(tenant: T): Omit<T, "socialLinks" | "theme"> & { socialLinks: Record<string, string>; theme: Record<string, string> } {
+async function ensureFreePlan(app: FastifyInstance): Promise<{ id: string }> {
+  return app.prisma.plan.upsert({
+    where: { id: "free" },
+    update: {},
+    create: {
+      id: "free",
+      name: "Free",
+      pieceLimit: 3,
+      monthlyPrice: 0
+    },
+    select: {
+      id: true
+    }
+  });
+}
+
+function withPublicPort(url: string): string {
+  if (!env.PLATFORM_PUBLIC_PORT) {
+    return url;
+  }
+
+  return `${url}:${env.PLATFORM_PUBLIC_PORT}`;
+}
+
+function buildPublishedUrl(hostname: string): string {
+  return withPublicPort(`${env.PLATFORM_PROTOCOL}://${hostname}`);
+}
+
+function serializeTenant<T extends { socialLinks: string | null; theme: string | null }>(
+  tenant: T
+): Omit<T, "socialLinks" | "theme"> & { socialLinks: Record<string, string>; theme: Record<string, string> } {
+  const { socialLinks, theme, ...rest } = tenant;
+  const parsedTheme = parseJson<Record<string, string>>(theme, {});
+  delete parsedTheme.adminPassword;
+  delete parsedTheme.adminPasswordHash;
+
   return {
-    ...tenant,
-    socialLinks: parseJson<Record<string, string>>(tenant.socialLinks, {}),
-    theme: parseJson<Record<string, string>>(tenant.theme, {})
+    ...rest,
+    socialLinks: parseJson<Record<string, string>>(socialLinks, {}),
+    theme: parsedTheme
   };
 }
 
@@ -68,20 +106,24 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
     }
 
-    const { name, slug, bio, contactEmail, socialLinks, theme } = parse.data;
+    const { name, slug, bio, contactEmail, adminPassword, socialLinks, theme } = parse.data;
 
     const existing = await app.prisma.tenant.findUnique({ where: { slug }, select: { id: true } });
     if (existing) {
       return reply.status(409).send({ error: "Tenant slug already exists" });
     }
 
-    const freePlan = await app.prisma.plan.findUnique({ where: { id: "free" } });
-    if (!freePlan) {
-      return reply.status(500).send({ error: "Default plan is not configured" });
-    }
+    const freePlan = await ensureFreePlan(app);
 
     const tenantCode = await allocateTenantCode(app);
+    const subdomainHostname = `${slug}.${env.PLATFORM_DOMAIN}`;
     const generatedApiKey = newApiKey();
+    const adminPasswordHash = await hashPassword(adminPassword);
+    const themeWithAdminHash: Record<string, string> = {
+      ...(theme ?? {}),
+      adminPasswordHash
+    };
+    delete themeWithAdminHash.adminPassword;
 
     const tenant = await app.prisma.$transaction(async (tx) => {
       const createdTenant = await tx.tenant.create({
@@ -93,8 +135,20 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
           bio,
           contactEmail,
           socialLinks: toJsonString(socialLinks),
-          theme: toJsonString(theme),
-          tenantCode
+          theme: toJsonString(themeWithAdminHash),
+          tenantCode,
+          published: true,
+          publishedUrl: buildPublishedUrl(subdomainHostname)
+        }
+      });
+
+      await tx.domain.create({
+        data: {
+          tenantId: createdTenant.id,
+          type: DomainType.SUBDOMAIN,
+          hostname: subdomainHostname,
+          verified: true,
+          isPrimary: true
         }
       });
 
@@ -225,7 +279,21 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     if (parse.data.bio !== undefined) updateData.bio = parse.data.bio;
     if (parse.data.contactEmail !== undefined) updateData.contactEmail = parse.data.contactEmail;
     if (parse.data.socialLinks !== undefined) updateData.socialLinks = toJsonString(parse.data.socialLinks);
-    if (parse.data.theme !== undefined) updateData.theme = toJsonString(parse.data.theme);
+
+    if (parse.data.theme !== undefined || parse.data.adminPassword !== undefined) {
+      const currentTheme = parseJson<Record<string, string>>(tenant.theme, {});
+      const nextTheme = {
+        ...currentTheme,
+        ...(parse.data.theme ?? {})
+      };
+      delete nextTheme.adminPassword;
+
+      if (parse.data.adminPassword !== undefined) {
+        nextTheme.adminPasswordHash = await hashPassword(parse.data.adminPassword);
+      }
+
+      updateData.theme = toJsonString(nextTheme);
+    }
 
     const updated = await app.prisma.tenant.update({
       where: {
@@ -249,7 +317,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const hostname = `${tenant.slug}.${env.PLATFORM_DOMAIN}`;
-    const publishedUrl = `https://${hostname}`;
+    const publishedUrl = buildPublishedUrl(hostname);
 
     await app.prisma.$transaction(async (tx) => {
       await tx.domain.upsert({
@@ -522,7 +590,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
           id: tenant.id
         },
         data: {
-          publishedUrl: `https://${hostname}`
+          publishedUrl: buildPublishedUrl(hostname)
         }
       });
     }

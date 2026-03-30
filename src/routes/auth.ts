@@ -76,7 +76,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   app.post("/auth/logout", async (request, reply) => {
     const sessionToken = sessionTokenFromRequest(request);
-    await destroySession(app.prisma, sessionToken);
+    try {
+      await destroySession(app.prisma, sessionToken);
+    } catch (error) {
+      request.log.warn({ err: error }, "Failed to destroy session during logout; clearing cookie anyway.");
+    }
     clearSessionCookie(reply);
 
     return reply.status(204).send();

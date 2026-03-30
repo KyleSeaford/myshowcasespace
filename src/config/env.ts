@@ -7,6 +7,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(24 * 7),
   PLATFORM_DOMAIN: z.string().default("myshowcase.space"),
+  PLATFORM_PROTOCOL: z.enum(["http", "https"]).default("https"),
+  PLATFORM_PUBLIC_PORT: z.coerce.number().int().positive().optional(),
   COOKIE_NAME: z.string().default("ms_session")
 });
 

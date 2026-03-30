@@ -6,8 +6,16 @@ const authContextPlugin: FastifyPluginAsync = async (app) => {
   app.decorateRequest("user", null);
 
   app.addHook("preHandler", async (request) => {
-    const token = sessionTokenFromRequest(request);
-    request.user = await getUserFromSession(app.prisma, token);
+    try {
+      const token = sessionTokenFromRequest(request);
+      request.user = await getUserFromSession(app.prisma, token);
+    } catch (error) {
+      request.log.warn(
+        { err: error },
+        "Failed to resolve user from session. Continuing request without authenticated user."
+      );
+      request.user = null;
+    }
   });
 };
 
