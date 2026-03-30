@@ -1,10 +1,10 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Rocket, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ApiError, createTenant, getMe } from "@/lib/api";
+import { ApiError, createTenant, getMe, uploadImage } from "@/lib/api";
 
 const slugPattern = /^[a-z0-9-]{3,40}$/;
 const totalSteps = 5;
@@ -14,6 +14,7 @@ type OnboardingForm = {
   bio: string;
   creatorName: string;
   discipline: string;
+  aboutPhotoUrl: string;
   contactEmail: string;
   location: string;
   waysToWorkTogether: string;
@@ -57,12 +58,14 @@ const Onboarding = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
   const [isDeploying, setIsDeploying] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [form, setForm] = useState<OnboardingForm>({
     name: "",
     bio: "",
     creatorName: "",
     discipline: "",
+    aboutPhotoUrl: "",
     contactEmail: "",
     location: "",
     waysToWorkTogether: "",
@@ -162,6 +165,9 @@ const Onboarding = () => {
       if (form.bio.trim().length < 20) {
         return "Bio should be at least 20 characters.";
       }
+      if (!form.aboutPhotoUrl.trim()) {
+        return "Please upload an About photo.";
+      }
     }
 
     if (step === 2 && !isValidEmail(form.contactEmail.trim())) {
@@ -208,6 +214,7 @@ const Onboarding = () => {
         theme: {
           creatorName: form.creatorName.trim(),
           discipline: form.discipline.trim(),
+          aboutPhotoUrl: form.aboutPhotoUrl.trim(),
           location: form.location.trim(),
           workTogether: form.waysToWorkTogether.trim()
         }
@@ -233,6 +240,33 @@ const Onboarding = () => {
       }
     } finally {
       setIsDeploying(false);
+    }
+  };
+
+  const handleAboutPhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setErrorMessage("");
+    setIsUploadingPhoto(true);
+
+    try {
+      const uploaded = await uploadImage(file, { tenantSlug: generatedSlug });
+      setForm((previous) => ({
+        ...previous,
+        aboutPhotoUrl: uploaded.url
+      }));
+    } catch (error) {
+      if (error instanceof ApiError) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Photo upload failed. Please try again.");
+      }
+    } finally {
+      setIsUploadingPhoto(false);
+      event.target.value = "";
     }
   };
 
@@ -359,6 +393,41 @@ const Onboarding = () => {
                         required
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="about-photo" className="text-sm text-foreground">About photo</label>
+                      <input
+                        id="about-photo"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        onChange={handleAboutPhotoUpload}
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-2 file:text-sm file:text-foreground hover:file:bg-secondary"
+                      />
+                      <p className="text-xs text-muted-foreground">Upload a portrait or studio image for your About page.</p>
+                      {form.aboutPhotoUrl ? (
+                        <div className="space-y-3">
+                          <div className="overflow-hidden rounded-md border border-border bg-secondary/30 p-2">
+                            <img
+                              src={form.aboutPhotoUrl}
+                              alt="About preview"
+                              className="h-36 w-full rounded object-cover"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() =>
+                              setForm((previous) => ({
+                                ...previous,
+                                aboutPhotoUrl: ""
+                              }))
+                            }
+                          >
+                            Remove photo
+                          </Button>
+                        </div>
+                      ) : null}
+                    </div>
                   </>
                 )}
 
@@ -484,6 +553,7 @@ const Onboarding = () => {
                       <p><span className="text-foreground">URL:</span> https://{generatedSlug}.myshowcase.space</p>
                       <p><span className="text-foreground">Creator:</span> {form.creatorName}</p>
                       <p><span className="text-foreground">Contact:</span> {form.contactEmail}</p>
+                      <p><span className="text-foreground">About photo:</span> {form.aboutPhotoUrl ? "Uploaded" : "Missing"}</p>
                       <p><span className="text-foreground">Location:</span> {form.location}</p>
                       <p><span className="text-foreground">Ways to work:</span> {form.waysToWorkTogether}</p>
                     </div>
@@ -496,7 +566,7 @@ const Onboarding = () => {
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={currentStep === 0 || isDeploying}
+                    disabled={currentStep === 0 || isDeploying || isUploadingPhoto}
                     onClick={() => {
                       setErrorMessage("");
                       setCurrentStep((step) => Math.max(0, step - 1));
@@ -506,14 +576,14 @@ const Onboarding = () => {
                     Back
                   </Button>
 
-                  <Button type="submit" disabled={isDeploying}>
+                  <Button type="submit" disabled={isDeploying || isUploadingPhoto}>
                     {currentStep === totalSteps - 1 ? (
                       <>
                         {isDeploying ? "Saving..." : "Save and open dashboard"}
                         <Rocket />
                       </>
                     ) : (
-                      "Next"
+                      isUploadingPhoto ? "Uploading photo..." : "Next"
                     )}
                   </Button>
                 </div>

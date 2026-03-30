@@ -13,6 +13,21 @@ export type TenantSummary = {
   publishedUrl: string | null;
 };
 
+export type TenantDetails = TenantSummary & {
+  bio: string | null;
+  contactEmail: string;
+  socialLinks: Record<string, string>;
+  theme: Record<string, string>;
+};
+
+export type UploadedImage = {
+  url: string;
+  directUrl?: string;
+  fileName: string;
+  size: number;
+  contentType: string;
+};
+
 type ApiErrorPayload = {
   error?: string;
   message?: string;
@@ -74,6 +89,12 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return payload.user;
 }
 
+export async function logout(): Promise<void> {
+  await request<void>("/auth/logout", {
+    method: "POST"
+  });
+}
+
 export async function getMe(): Promise<{ user: AuthUser; tenants: TenantSummary[] }> {
   return request<{ user: AuthUser; tenants: TenantSummary[] }>("/auth/me");
 }
@@ -93,6 +114,60 @@ export async function createTenant(payload: TenantCreatePayload): Promise<{ tena
     method: "POST",
     body: payload
   });
+}
+
+export type TenantUpdatePayload = {
+  name?: string;
+  bio?: string | null;
+  contactEmail?: string;
+  socialLinks?: Record<string, string>;
+  theme?: Record<string, string>;
+  adminPassword?: string;
+};
+
+export async function getTenant(tenantId: string): Promise<TenantDetails> {
+  const payload = await request<{ tenant: TenantDetails | null }>(`/tenants/${tenantId}`);
+  if (!payload.tenant) {
+    throw new ApiError(404, "Tenant not found");
+  }
+  return payload.tenant;
+}
+
+export async function updateTenant(tenantId: string, payload: TenantUpdatePayload): Promise<TenantDetails> {
+  const response = await request<{ tenant: TenantDetails }>(`/tenants/${tenantId}`, {
+    method: "PATCH",
+    body: payload
+  });
+  return response.tenant;
+}
+
+type UploadImageOptions = {
+  tenantId?: string;
+  tenantSlug?: string;
+};
+
+export async function uploadImage(file: File, options?: UploadImageOptions): Promise<UploadedImage> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (options?.tenantId) {
+    formData.append("tenantId", options.tenantId);
+  }
+  if (options?.tenantSlug) {
+    formData.append("tenantSlug", options.tenantSlug);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/uploads/images`, {
+    method: "POST",
+    credentials: "include",
+    body: formData
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+    throw new ApiError(response.status, payload?.error ?? payload?.message ?? "Image upload failed");
+  }
+
+  return (await response.json()) as UploadedImage;
 }
 
 export async function publishTenant(tenantId: string): Promise<{ published: boolean; publishedUrl: string }> {

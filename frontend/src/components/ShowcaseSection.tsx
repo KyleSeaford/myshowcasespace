@@ -1,4 +1,4 @@
-import portfolio1 from "@/assets/portfolio-1.jpg";
+import portfolio1 from "@/assets/image.png";
 
 const showcaseHighlights = [
   {

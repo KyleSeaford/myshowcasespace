@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
+import multipart from "@fastify/multipart";
 import type { PrismaClient } from "@prisma/client";
 import { prisma as defaultPrisma } from "./db/client.js";
 import { authContext } from "./plugins/auth-context.js";
@@ -8,6 +9,7 @@ import { healthRoutes } from "./routes/health.js";
 import { pieceRoutes } from "./routes/pieces.js";
 import { tenantApiRoutes } from "./routes/tenant-api.js";
 import { tenantRoutes } from "./routes/tenants.js";
+import { uploadRoutes } from "./routes/uploads.js";
 
 export interface AppOptions {
   prisma?: PrismaClient;
@@ -23,6 +25,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   app.decorate("prisma", prisma);
 
   app.register(cookie);
+  app.register(multipart);
   app.register(authContext);
 
   app.register(healthRoutes);
@@ -30,6 +33,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   app.register(tenantRoutes);
   app.register(pieceRoutes);
   app.register(tenantApiRoutes);
+  app.register(uploadRoutes);
 
   app.setErrorHandler((error, _request, reply) => {
     app.log.error(error);

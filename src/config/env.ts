@@ -9,6 +9,7 @@ const envSchema = z.object({
   PLATFORM_DOMAIN: z.string().default("myshowcase.space"),
   PLATFORM_PROTOCOL: z.enum(["http", "https"]).default("https"),
   PLATFORM_PUBLIC_PORT: z.coerce.number().int().positive().optional(),
+  UPLOADTHING_TOKEN: z.string().min(1).optional(),
   COOKIE_NAME: z.string().default("ms_session")
 });
 
