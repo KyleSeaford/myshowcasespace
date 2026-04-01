@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { CURRENT_LEGAL_VERSION } from "../src/lib/legal.js";
 
 const prisma = new PrismaClient();
 
@@ -32,10 +33,16 @@ async function main(): Promise<void> {
 
   const demoUser = await prisma.user.upsert({
     where: { email: demoEmail },
-    update: { passwordHash },
+    update: {
+      passwordHash,
+      legalAcceptedAt: new Date(),
+      legalAcceptedVersion: CURRENT_LEGAL_VERSION
+    },
     create: {
       email: demoEmail,
-      passwordHash
+      passwordHash,
+      legalAcceptedAt: new Date(),
+      legalAcceptedVersion: CURRENT_LEGAL_VERSION
     }
   });
 

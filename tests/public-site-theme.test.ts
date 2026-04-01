@@ -20,7 +20,8 @@ describe("public site theme", () => {
       url: "/auth/signup",
       payload: {
         email: "public@example.com",
-        password: "StrongPass123!"
+        password: "StrongPass123!",
+        acceptedLegal: true
       }
     });
 

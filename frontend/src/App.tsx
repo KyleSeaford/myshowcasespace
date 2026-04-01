@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import About from "./pages/About.tsx";
 import Blog from "./pages/Blog.tsx";
 import BlogPostPage from "./pages/BlogPost.tsx";
+import CookieNotice from "./pages/CookieNotice.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import HelpCenter from "./pages/HelpCenter.tsx";
 import Index from "./pages/Index.tsx";
@@ -14,8 +15,10 @@ import LaunchReady from "./pages/LaunchReady.tsx";
 import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
+import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Settings from "./pages/Settings.tsx";
 import Start from "./pages/Start.tsx";
+import TermsOfService from "./pages/TermsOfService.tsx";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +69,9 @@ const App = () => (
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/legal" element={<Legal />} />
+          <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/legal/cookie-notice" element={<CookieNotice />} />
+          <Route path="/legal/terms-of-service" element={<TermsOfService />} />
           <Route path="/start" element={<Start />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />

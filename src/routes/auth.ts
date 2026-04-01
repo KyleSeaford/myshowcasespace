@@ -1,4 +1,4 @@
-import type { FastifyPluginAsync } from "fastify";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import {
   clearSessionCookie,
@@ -10,20 +10,47 @@ import {
   verifyPassword
 } from "../lib/auth.js";
 import { requireAuth } from "../lib/guards.js";
+import { verifyHCaptchaToken } from "../lib/hcaptcha.js";
+import { CURRENT_LEGAL_VERSION, LEGAL_ACCEPTANCE_ERROR } from "../lib/legal.js";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8).max(128)
 });
 
+const authRequestSchema = credentialsSchema.extend({
+  acceptedLegal: z.boolean(),
+  captchaToken: z.string().min(1).optional()
+});
+
+async function recordLegalAcceptance(app: FastifyInstance, userId: string): Promise<void> {
+  await app.prisma.user.update({
+    where: { id: userId },
+    data: {
+      legalAcceptedAt: new Date(),
+      legalAcceptedVersion: CURRENT_LEGAL_VERSION
+    }
+  });
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/auth/signup", async (request, reply) => {
-    const parse = credentialsSchema.safeParse(request.body);
+    const parse = authRequestSchema.safeParse(request.body);
     if (!parse.success) {
       return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
     }
 
-    const { email, password } = parse.data;
+    const { email, password, acceptedLegal, captchaToken } = parse.data;
+    if (!acceptedLegal) {
+      return reply.status(400).send({ error: LEGAL_ACCEPTANCE_ERROR });
+    }
+
+    const captcha = await verifyHCaptchaToken(captchaToken, request.ip, request.headers.host);
+    if (!captcha.ok) {
+      request.log.warn({ errorCodes: captcha.errorCodes }, "hCaptcha verification failed during signup.");
+      return reply.status(captcha.statusCode).send({ error: captcha.message });
+    }
+
     const existing = await app.prisma.user.findUnique({ where: { email } });
     if (existing) {
       return reply.status(409).send({ error: "Email is already in use" });
@@ -33,7 +60,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const user = await app.prisma.user.create({
       data: {
         email,
-        passwordHash
+        passwordHash,
+        legalAcceptedAt: new Date(),
+        legalAcceptedVersion: CURRENT_LEGAL_VERSION
       }
     });
 
@@ -50,16 +79,30 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post("/auth/login", async (request, reply) => {
-    const parse = credentialsSchema.safeParse(request.body);
+    const parse = authRequestSchema.safeParse(request.body);
     if (!parse.success) {
       return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
     }
 
-    const { email, password } = parse.data;
+    const { email, password, acceptedLegal, captchaToken } = parse.data;
+    if (!acceptedLegal) {
+      return reply.status(400).send({ error: LEGAL_ACCEPTANCE_ERROR });
+    }
+
+    const captcha = await verifyHCaptchaToken(captchaToken, request.ip, request.headers.host);
+    if (!captcha.ok) {
+      request.log.warn({ errorCodes: captcha.errorCodes }, "hCaptcha verification failed during login.");
+      return reply.status(captcha.statusCode).send({ error: captcha.message });
+    }
+
     const user = await app.prisma.user.findUnique({ where: { email } });
 
     if (!user || !(await verifyPassword(password, user.passwordHash))) {
       return reply.status(401).send({ error: "Invalid email or password" });
+    }
+
+    if (!user.legalAcceptedAt || user.legalAcceptedVersion !== CURRENT_LEGAL_VERSION) {
+      await recordLegalAcceptance(app, user.id);
     }
 
     const sessionToken = await createSession(app.prisma, user.id);

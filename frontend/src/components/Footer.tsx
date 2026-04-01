@@ -24,11 +24,11 @@ const Footer = () => {
           </div>
 
           <div>
-            <h3 className="text-xs uppercase tracking-[0.12em] text-foreground mb-3">Resources</h3>
+            <h3 className="text-xs uppercase tracking-[0.12em] text-foreground mb-3">Legal Docs</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="/help-center" className="hover:text-foreground transition-colors">Help center</a></li>
-              <li><a href="/legal" className="hover:text-foreground transition-colors">Legal</a></li>
-              <li><a href="/#pricing" className="hover:text-foreground transition-colors">Pricing</a></li>
+              <li><a href="/legal/terms-of-service" className="hover:text-foreground transition-colors">Terms</a></li>
+              <li><a href="/legal/privacy-policy" className="hover:text-foreground transition-colors">Privacy</a></li>
+              <li><a href="/legal/cookie-notice" className="hover:text-foreground transition-colors">Cookies</a></li>
             </ul>
           </div>
 
@@ -36,6 +36,7 @@ const Footer = () => {
             <h3 className="text-xs uppercase tracking-[0.12em] text-foreground mb-3">Company</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li><a href="/about" className="hover:text-foreground transition-colors">About</a></li>
+              <li><a href="/help-center" className="hover:text-foreground transition-colors">Help center</a></li>
               <li><a href="/blog" className="hover:text-foreground transition-colors">Blog</a></li>
             </ul>
           </div>

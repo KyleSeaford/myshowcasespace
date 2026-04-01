@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { CURRENT_LEGAL_VERSION } from "../src/lib/legal.js";
 import { closeTestApp, createTestApp, extractSessionCookie } from "./setup.js";
 
 describe("auth flow", () => {
@@ -20,12 +21,21 @@ describe("auth flow", () => {
       url: "/auth/signup",
       payload: {
         email: "artist@example.com",
-        password: "StrongPass123!"
+        password: "StrongPass123!",
+        acceptedLegal: true
       }
     });
 
     expect(signup.statusCode).toBe(201);
     const sessionCookie = extractSessionCookie(signup.headers["set-cookie"]);
+    const createdUser = await prisma.user.findUnique({
+      where: {
+        email: "artist@example.com"
+      }
+    });
+
+    expect(createdUser?.legalAcceptedAt).toBeTruthy();
+    expect(createdUser?.legalAcceptedVersion).toBe(CURRENT_LEGAL_VERSION);
 
     const me = await app.inject({
       method: "GET",
@@ -48,6 +58,30 @@ describe("auth flow", () => {
     });
 
     expect(logout.statusCode).toBe(204);
+
+    const rejectedLogin = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "artist@example.com",
+        password: "StrongPass123!",
+        acceptedLegal: false
+      }
+    });
+
+    expect(rejectedLogin.statusCode).toBe(400);
+
+    const login = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "artist@example.com",
+        password: "StrongPass123!",
+        acceptedLegal: true
+      }
+    });
+
+    expect(login.statusCode).toBe(200);
 
     const meAfterLogout = await app.inject({
       method: "GET",

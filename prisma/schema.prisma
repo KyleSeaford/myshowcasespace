@@ -26,13 +26,15 @@ enum CheckoutStatus {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  sessions     Session[]
-  tenants      Tenant[]
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String
+  legalAcceptedAt      DateTime?
+  legalAcceptedVersion String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  sessions             Session[]
+  tenants              Tenant[]
 }
 
 model Session {

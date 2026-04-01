@@ -50,7 +50,7 @@ describe("api client", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await login("artist@example.com", "StrongPass123!");
+    await login("artist@example.com", "StrongPass123!", true);
 
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/auth/login",
@@ -59,11 +59,48 @@ describe("api client", () => {
         credentials: "include",
         body: JSON.stringify({
           email: "artist@example.com",
-          password: "StrongPass123!"
+          password: "StrongPass123!",
+          acceptedLegal: true
         }),
         headers: {
           "Content-Type": "application/json"
         }
+      })
+    );
+  });
+
+  it("includes a captcha token when provided", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          user: {
+            id: "user_123",
+            email: "artist@example.com",
+            createdAt: "2026-04-01T00:00:00.000Z"
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      )
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await login("artist@example.com", "StrongPass123!", true, "captcha_token_123");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/auth/login",
+      expect.objectContaining({
+        body: JSON.stringify({
+          email: "artist@example.com",
+          password: "StrongPass123!",
+          acceptedLegal: true,
+          captchaToken: "captcha_token_123"
+        })
       })
     );
   });

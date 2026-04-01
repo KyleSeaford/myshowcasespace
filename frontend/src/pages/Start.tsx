@@ -1,10 +1,13 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, LockKeyhole, ScrollText, Sparkles } from "lucide-react";
+import HCaptchaWidget from "@/components/HCaptchaWidget";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ApiError, getMe, login, signup } from "@/lib/api";
+import { HCAPTCHA_SITE_KEY, isHCaptchaEnabled } from "@/lib/hcaptcha";
 
 type AuthMode = "signup" | "login";
 
@@ -14,8 +17,12 @@ const Start = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [hasAcceptedLegal, setHasAcceptedLegal] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState("");
+  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hCaptchaEnabled = isHCaptchaEnabled();
 
   const title = useMemo(
     () => (mode === "signup" ? "Create your account" : "Welcome back"),
@@ -62,14 +69,24 @@ const Start = () => {
       return;
     }
 
+    if (!hasAcceptedLegal) {
+      setErrorMessage("Please accept the Terms of Service, Privacy Policy, and Cookie Notice.");
+      return;
+    }
+
+    if (hCaptchaEnabled && !captchaToken) {
+      setErrorMessage("Please complete the captcha challenge.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       if (mode === "signup") {
-        await signup(email.trim().toLowerCase(), password);
+        await signup(email.trim().toLowerCase(), password, true, captchaToken || undefined);
         navigate("/onboarding");
       } else {
-        await login(email.trim().toLowerCase(), password);
+        await login(email.trim().toLowerCase(), password, true, captchaToken || undefined);
         const profile = await getMe();
         if (profile.tenants.length > 0) {
           navigateToDashboard(profile.tenants[0]);
@@ -84,6 +101,10 @@ const Start = () => {
         setErrorMessage("Unable to continue. Please try again.");
       }
     } finally {
+      if (hCaptchaEnabled) {
+        setCaptchaToken("");
+        setCaptchaResetSignal((value) => value + 1);
+      }
       setIsSubmitting(false);
     }
   };
@@ -107,11 +128,43 @@ const Start = () => {
             <p className="max-w-lg text-muted-foreground text-base md:text-lg leading-relaxed">
               Account first. Then quick onboarding steps. Then your showcase is deployed.
             </p>
-            <ol className="grid gap-3 text-sm text-muted-foreground">
-              <li>1. Create account or log in</li>
-              <li>2. Add your profile, site details, and links</li>
-              <li>3. Press deploy and go live</li>
-            </ol>
+
+            <div className="grid gap-3">
+              <div className="border border-border bg-background/70 p-4">
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">How It Works</p>
+                <ol className="mt-3 grid gap-3 text-sm text-muted-foreground">
+                  <li>1. Create your account or log back in</li>
+                  <li>2. Add your profile, links, and site details</li>
+                  <li>3. Save, open your dashboard, and go live</li>
+                </ol>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="border border-border bg-secondary/20 p-4">
+                  <ScrollText className="h-4 w-4 text-foreground" />
+                  <p className="mt-3 text-sm text-foreground">Clear legal step</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    Terms, privacy, and cookies are linked before account access.
+                  </p>
+                </div>
+
+                <div className="border border-border bg-secondary/20 p-4">
+                  <LockKeyhole className="h-4 w-4 text-foreground" />
+                  <p className="mt-3 text-sm text-foreground">Protected entry</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    hCaptcha helps block spam and brute-force attempts.
+                  </p>
+                </div>
+
+                <div className="border border-border bg-secondary/20 p-4">
+                  <Sparkles className="h-4 w-4 text-foreground" />
+                  <p className="mt-3 text-sm text-foreground">Fast setup</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    One guided flow takes you from account to live site.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <Card className="border-border/80 bg-card/80 backdrop-blur-sm">
@@ -170,9 +223,71 @@ const Start = () => {
                   </div>
                 )}
 
+                <div className="rounded-md border border-border bg-secondary/30 p-4">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="legal-acceptance"
+                      checked={hasAcceptedLegal}
+                      onCheckedChange={(checked) => setHasAcceptedLegal(checked === true)}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <p className="text-sm text-foreground">Legal agreement</p>
+                      <label htmlFor="legal-acceptance" className="text-xs leading-relaxed text-muted-foreground">
+                        {mode === "signup" ? "I agree to the " : "I have read the "}
+                        <Link to="/legal/terms-of-service" className="text-foreground underline underline-offset-4">
+                          Terms
+                        </Link>
+                        ,{" "}
+                        <Link to="/legal/privacy-policy" className="text-foreground underline underline-offset-4">
+                          Privacy
+                        </Link>
+                        {" and "}
+                        <Link to="/legal/cookie-notice" className="text-foreground underline underline-offset-4">
+                          Cookies
+                        </Link>
+                        .
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {hCaptchaEnabled ? (
+                  <div className="rounded-md border border-border bg-secondary/20 p-4">
+                    <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_1fr] md:items-center">
+                      <HCaptchaWidget
+                        siteKey={HCAPTCHA_SITE_KEY}
+                        resetSignal={captchaResetSignal}
+                        onVerify={(token) => {
+                          setCaptchaToken(token);
+                          setErrorMessage("");
+                        }}
+                        onExpire={() => {
+                          setCaptchaToken("");
+                          setErrorMessage("Captcha expired. Please complete it again.");
+                        }}
+                        onError={(message) => {
+                          setCaptchaToken("");
+                          setErrorMessage(message);
+                        }}
+                      />
+                      <div className="space-y-2">
+                        <p className="text-sm text-foreground">Protected by hCaptcha.</p>
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Helps block spam and brute-force logins.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
                 {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting || !hasAcceptedLegal || (hCaptchaEnabled && !captchaToken)}
+                >
                   {isSubmitting ? "Please wait..." : submitLabel}
                   <ArrowRight />
                 </Button>
@@ -184,6 +299,9 @@ const Start = () => {
                     className="text-foreground underline underline-offset-4"
                     onClick={() => {
                       setMode(mode === "signup" ? "login" : "signup");
+                      setHasAcceptedLegal(false);
+                      setCaptchaToken("");
+                      setCaptchaResetSignal((value) => value + 1);
                       setErrorMessage("");
                     }}
                   >

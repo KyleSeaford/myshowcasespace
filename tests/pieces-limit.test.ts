@@ -20,7 +20,8 @@ describe("piece limits", () => {
       url: "/auth/signup",
       payload: {
         email: "pieces@example.com",
-        password: "StrongPass123!"
+        password: "StrongPass123!",
+        acceptedLegal: true
       }
     });
 

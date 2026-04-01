@@ -20,7 +20,8 @@ describe("billing plans", () => {
       url: "/auth/signup",
       payload: {
         email: "studio@example.com",
-        password: "StrongPass123!"
+        password: "StrongPass123!",
+        acceptedLegal: true
       }
     });
 

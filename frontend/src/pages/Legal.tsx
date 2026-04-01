@@ -1,35 +1,55 @@
+import { Link } from "react-router-dom";
 import ContentPageLayout from "@/components/ContentPageLayout";
+import { HELP_EMAIL, LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
+
+const documents = [
+  {
+    title: "Privacy Policy",
+    href: "/legal/privacy-policy",
+    description: "How account data, uploaded content, technical logs, and support information are handled."
+  },
+  {
+    title: "Cookie Notice",
+    href: "/legal/cookie-notice",
+    description: "How MyShowcase uses essential cookies and Vercel-hosted analytics or performance tooling."
+  },
+  {
+    title: "Terms of Service",
+    href: "/legal/terms-of-service",
+    description: "The rules for acceptable use, uploaded content, copyright ownership, and account access."
+  }
+] as const;
 
 const Legal = () => {
   return (
     <ContentPageLayout
       title="Legal"
-      subtitle="Important policies for using MyShowcase. This page is a product placeholder and should be reviewed by legal counsel before launch."
+      subtitle="The key rules and policies that apply when someone creates an account, logs in, uploads work, or uses MyShowcase."
     >
       <div className="grid gap-8">
-        <section className="border border-border p-6">
-          <h2 className="font-heading text-3xl text-foreground mb-3">Terms of Service</h2>
-          <p className="text-sm text-muted-foreground font-light leading-relaxed">
-            By using MyShowcase, you agree to use the service lawfully, maintain accurate account
-            details, and respect content ownership and intellectual property rules.
+        <section className="border border-border bg-background p-6">
+          <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+            Effective date: {LEGAL_EFFECTIVE_DATE}
+          </p>
+          <p className="mt-3 max-w-3xl text-sm font-light leading-relaxed text-muted-foreground">
+            Questions about account use, privacy, cookies, or copyright complaints can be sent to {HELP_EMAIL}.
           </p>
         </section>
 
-        <section className="border border-border p-6">
-          <h2 className="font-heading text-3xl text-foreground mb-3">Privacy Policy</h2>
-          <p className="text-sm text-muted-foreground font-light leading-relaxed">
-            We collect only the information needed to provide and improve the platform, including
-            account details, billing records, and basic usage analytics.
-          </p>
-        </section>
-
-        <section className="border border-border p-6">
-          <h2 className="font-heading text-3xl text-foreground mb-3">Cookie Notice</h2>
-          <p className="text-sm text-muted-foreground font-light leading-relaxed">
-            Cookies are used for authentication, security, and analytics. You can control cookie
-            behavior through your browser settings.
-          </p>
-        </section>
+        <div className="grid gap-5 md:grid-cols-3">
+          {documents.map((document) => (
+            <Link
+              key={document.href}
+              to={document.href}
+              className="border border-border bg-background p-6 transition-colors hover:border-foreground"
+            >
+              <h2 className="mb-3 font-heading text-3xl text-foreground">{document.title}</h2>
+              <p className="text-sm font-light leading-relaxed text-muted-foreground">
+                {document.description}
+              </p>
+            </Link>
+          ))}
+        </div>
       </div>
     </ContentPageLayout>
   );

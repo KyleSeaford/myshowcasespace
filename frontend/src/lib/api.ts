@@ -74,18 +74,38 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
   return (await response.json()) as T;
 }
 
-export async function signup(email: string, password: string): Promise<AuthUser> {
+export async function signup(
+  email: string,
+  password: string,
+  acceptedLegal: boolean,
+  captchaToken?: string
+): Promise<AuthUser> {
   const payload = await request<{ user: AuthUser }>("/auth/signup", {
     method: "POST",
-    body: { email, password }
+    body: {
+      email,
+      password,
+      acceptedLegal,
+      ...(captchaToken ? { captchaToken } : {})
+    }
   });
   return payload.user;
 }
 
-export async function login(email: string, password: string): Promise<AuthUser> {
+export async function login(
+  email: string,
+  password: string,
+  acceptedLegal: boolean,
+  captchaToken?: string
+): Promise<AuthUser> {
   const payload = await request<{ user: AuthUser }>("/auth/login", {
     method: "POST",
-    body: { email, password }
+    body: {
+      email,
+      password,
+      acceptedLegal,
+      ...(captchaToken ? { captchaToken } : {})
+    }
   });
   return payload.user;
 }
