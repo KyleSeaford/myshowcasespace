@@ -20,6 +20,8 @@ export type MarkdownBlock =
   | { type: "p"; text: string }
   | { type: "ul"; items: string[] };
 
+const BLOG_CONTENT_BASE_PATH = "/blog-content";
+
 function slugFromFile(file: string): string {
   return file.replace(/\.md$/i, "");
 }
@@ -119,7 +121,7 @@ export function markdownToBlocks(markdown: string): MarkdownBlock[] {
 }
 
 export async function loadBlogPosts(): Promise<BlogPost[]> {
-  const manifestResponse = await fetch("/blog/index.json");
+  const manifestResponse = await fetch(`${BLOG_CONTENT_BASE_PATH}/index.json`);
   if (!manifestResponse.ok) {
     throw new Error("Could not load blog index file.");
   }
@@ -127,7 +129,7 @@ export async function loadBlogPosts(): Promise<BlogPost[]> {
   const manifest = (await manifestResponse.json()) as BlogManifest;
   const loadedPosts = await Promise.all(
     manifest.posts.map(async (entry) => {
-      const response = await fetch(`/blog/${entry.file}`);
+      const response = await fetch(`${BLOG_CONTENT_BASE_PATH}/${entry.file}`);
       if (!response.ok) {
         throw new Error(`Could not load ${entry.file}`);
       }

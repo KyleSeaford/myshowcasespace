@@ -23,4 +23,4 @@ Keep paragraphs short and clear. Lead with practical ideas and include visuals w
 
 ## Next step
 
-Duplicate this file, rename it, and add the new filename to `/public/blog/index.json`.
+Duplicate this file, rename it, and add the new filename to `/public/blog-content/index.json`.
