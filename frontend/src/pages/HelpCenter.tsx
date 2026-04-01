@@ -9,7 +9,7 @@ const faqs = [
   {
     question: "Can I use my own domain?",
     answer:
-      "Yes. Portfolio plan and above support custom domains. You can connect your domain from the dashboard in a few steps.",
+      "Yes. Personal and Studio plans support custom domains. You can connect your domain from the dashboard in a few steps.",
   },
   {
     question: "Do I need coding skills?",

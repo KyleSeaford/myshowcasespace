@@ -51,14 +51,15 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;
+  const hasJsonBody = body !== undefined;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...rest,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
-      ...headers
+      ...headers,
+      ...(hasJsonBody ? { "Content-Type": "application/json" } : {})
     },
-    body: body === undefined ? undefined : JSON.stringify(body)
+    body: hasJsonBody ? JSON.stringify(body) : undefined
   });
 
   if (!response.ok) {
@@ -117,7 +118,6 @@ export async function createTenant(payload: TenantCreatePayload): Promise<{ tena
 }
 
 export type TenantUpdatePayload = {
-  name?: string;
   bio?: string | null;
   contactEmail?: string;
   socialLinks?: Record<string, string>;

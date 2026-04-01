@@ -46,7 +46,8 @@ export async function createTestApp(): Promise<{ app: FastifyInstance; prisma: P
   await prisma.plan.createMany({
     data: [
       { id: "free", name: "Free", pieceLimit: 3, monthlyPrice: 0 },
-      { id: "pro", name: "Pro", pieceLimit: null, monthlyPrice: 1900 }
+      { id: "pro", name: "Personal", pieceLimit: 50, monthlyPrice: 500 },
+      { id: "studio", name: "Studio", pieceLimit: 200, monthlyPrice: 1200 }
     ]
   });
 

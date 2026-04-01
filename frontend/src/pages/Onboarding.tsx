@@ -12,6 +12,7 @@ const totalSteps = 5;
 type OnboardingForm = {
   name: string;
   bio: string;
+  heroTitle: string;
   creatorName: string;
   discipline: string;
   aboutPhotoUrl: string;
@@ -73,6 +74,10 @@ function normalizeSocialUrl(value: string, baseUrl: string): string {
   return `${baseWithSlash}${normalizedHandle}`;
 }
 
+function resolveHeroTitle(heroTitle: string, creatorName: string, siteName: string): string {
+  return heroTitle.trim() || creatorName.trim() || siteName.trim();
+}
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
@@ -84,6 +89,7 @@ const Onboarding = () => {
   const [form, setForm] = useState<OnboardingForm>({
     name: "",
     bio: "",
+    heroTitle: "",
     creatorName: "",
     discipline: "",
     aboutPhotoUrl: "",
@@ -237,6 +243,7 @@ const Onboarding = () => {
         adminPassword: form.adminPassword,
         socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
         theme: {
+          heroTitle: resolveHeroTitle(form.heroTitle, form.creatorName, form.name),
           creatorName: form.creatorName.trim(),
           discipline: form.discipline.trim(),
           aboutPhotoUrl: form.aboutPhotoUrl.trim(),
@@ -386,6 +393,19 @@ const Onboarding = () => {
 
                 {currentStep === 1 && (
                   <>
+                    <div className="space-y-2">
+                      <label htmlFor="hero-title" className="text-sm text-foreground">Hero title</label>
+                      <Input
+                        id="hero-title"
+                        value={form.heroTitle}
+                        onChange={(event) => setForm((previous) => ({ ...previous, heroTitle: event.target.value }))}
+                        placeholder="Selected works by Alex Rivera"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Main headline shown at the top of your site.
+                      </p>
+                    </div>
+
                     <div className="space-y-2">
                       <label htmlFor="creator-name" className="text-sm text-foreground">Creator name</label>
                       <Input
@@ -576,6 +596,7 @@ const Onboarding = () => {
                     <div className="grid gap-2 text-muted-foreground">
                       <p><span className="text-foreground">Site:</span> {form.name}</p>
                       <p><span className="text-foreground">URL:</span> https://{generatedSlug}.myshowcase.space</p>
+                      <p><span className="text-foreground">Hero title:</span> {resolveHeroTitle(form.heroTitle, form.creatorName, form.name)}</p>
                       <p><span className="text-foreground">Creator:</span> {form.creatorName}</p>
                       <p><span className="text-foreground">Contact:</span> {form.contactEmail}</p>
                       <p><span className="text-foreground">About photo:</span> {form.aboutPhotoUrl ? "Uploaded" : "Missing"}</p>

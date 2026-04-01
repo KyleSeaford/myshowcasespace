@@ -17,8 +17,14 @@ async function main(): Promise<void> {
 
   await prisma.plan.upsert({
     where: { id: "pro" },
-    update: { name: "Pro", pieceLimit: null, monthlyPrice: 1900 },
-    create: { id: "pro", name: "Pro", pieceLimit: null, monthlyPrice: 1900 }
+    update: { name: "Personal", pieceLimit: 50, monthlyPrice: 500 },
+    create: { id: "pro", name: "Personal", pieceLimit: 50, monthlyPrice: 500 }
+  });
+
+  await prisma.plan.upsert({
+    where: { id: "studio" },
+    update: { name: "Studio", pieceLimit: 200, monthlyPrice: 1200 },
+    create: { id: "studio", name: "Studio", pieceLimit: 200, monthlyPrice: 1200 }
   });
 
   const demoEmail = "demo@myshowcase.space";

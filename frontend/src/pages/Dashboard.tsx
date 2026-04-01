@@ -65,7 +65,7 @@ const Dashboard = () => {
   const siteUrl = normalizeSiteUrl(params.get("url") ?? tenant?.publishedUrl ?? "", slug);
   const adminUrl = siteUrl ? `${siteUrl}/admin` : "/admin";
   const settingsHref = tenantId ? `/settings?tenantId=${encodeURIComponent(tenantId)}` : "/settings";
-
+  const paidPlanLabel = planId === "studio" ? "Studio" : "Personal";
   const DashboardHref = tenantId ? `/dashboard?tenantId=${encodeURIComponent(tenantId)}` : "/dashboard";
 
   const handleLogout = async () => {
@@ -147,13 +147,13 @@ const Dashboard = () => {
                 <CardHeader>
                   <div className="flex items-center gap-2 text-foreground">
                     <Rocket className="h-4 w-4" />
-                    <CardTitle className="text-xl font-medium">Upgrade to Pro</CardTitle>
+                    <CardTitle className="text-xl font-medium">Upgrade your plan</CardTitle>
                   </div>
-                  <CardDescription>To unlock pro features, follow these steps:</CardDescription>
+                  <CardDescription>To unlock paid features, follow these steps:</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-muted-foreground">
                   <p>1. Open the pricing page.</p>
-                  <p>2. Choose the Portfolio/Pro plan.</p>
+                  <p>2. Choose the {paidPlanLabel} or Studio plan.</p>
                   <p>3. Complete checkout to upgrade this site.</p>
                   <Button variant="outline" asChild>
                     <Link to="/#pricing">
@@ -195,7 +195,7 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm text-muted-foreground">
                   <p>1. Open <code className="text-foreground">/admin</code> and add pieces.</p>
-                  <p>2. Upgrade plan when you need pro features.</p>
+                  <p>2. Upgrade when you need more pieces or domain features.</p>
                   <p>3. Share your live URL once content is ready.</p>
                 </CardContent>
               </Card>

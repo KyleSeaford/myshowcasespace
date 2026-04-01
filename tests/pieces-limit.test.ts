@@ -37,6 +37,7 @@ describe("piece limits", () => {
         slug: "piece-studio",
         bio: "testing",
         contactEmail: "pieces@example.com",
+        adminPassword: "adminpass",
         socialLinks: {},
         theme: {
           layout: "grid"

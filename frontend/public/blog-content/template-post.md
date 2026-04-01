@@ -4,7 +4,6 @@ slug: "template-post"
 author: "MyShowcase Team"
 publishedAt: "2026-03-30"
 excerpt: "This is a starter blog template. Replace this file with your real article content."
-coverImage: "/placeholder.svg"
 ---
 
 # Template Post: Replace Me

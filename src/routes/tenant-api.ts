@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from "fastif
 import { z } from "zod";
 import { sha256 } from "../lib/crypto.js";
 import { parseJson } from "../lib/json.js";
+import { parseTenantTheme } from "../lib/theme.js";
 
 const tenantCodeSchema = z.object({
   tenantCode: z.string().min(6).max(32)
@@ -109,7 +110,7 @@ export const tenantApiRoutes: FastifyPluginAsync = async (app) => {
       tenant: {
         ...tenant,
         socialLinks: parseJson<Record<string, string>>(tenant.socialLinks, {}),
-        theme: parseJson<Record<string, string>>(tenant.theme, {})
+        theme: parseTenantTheme(tenant.theme, tenant.name)
       },
       pieces: pieces.map((piece) => ({
         ...piece,
@@ -164,7 +165,7 @@ export const tenantApiRoutes: FastifyPluginAsync = async (app) => {
       tenant: {
         ...tenant,
         socialLinks: parseJson<Record<string, string>>(tenant.socialLinks, {}),
-        theme: parseJson<Record<string, string>>(tenant.theme, {})
+        theme: parseTenantTheme(tenant.theme, tenant.name)
       },
       pieces: pieces.map((piece) => ({
         ...piece,

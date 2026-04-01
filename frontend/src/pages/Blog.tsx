@@ -41,7 +41,7 @@ const Blog = () => {
   return (
     <ContentPageLayout
       title="Blog"
-      subtitle="Updates and articles from your /public/blog folder. Click a card to read the full post."
+      subtitle="Read the latest news and updates about our project, insights into our development process, and more."
     >
       {loading ? (
         <div className="max-w-3xl border border-border bg-background p-6 md:p-8">

@@ -6,10 +6,33 @@ import { newApiKey, newTenantCode } from "../lib/crypto.js";
 import { env } from "../config/env.js";
 import { parseJson, toJsonString } from "../lib/json.js";
 import { hashPassword } from "../lib/auth.js";
+import { parseTenantTheme } from "../lib/theme.js";
 
 const socialLinksSchema = z.record(z.string().min(1).max(80), z.string().max(1000));
 
 const themeSchema = z.record(z.string().min(1).max(80), z.string().max(2_000_000));
+const paidPlanIds = ["pro", "studio"] as const;
+const customDomainEligiblePlanIds = new Set<string>(paidPlanIds);
+const defaultPlans = [
+  {
+    id: "free",
+    name: "Free",
+    pieceLimit: 3,
+    monthlyPrice: 0
+  },
+  {
+    id: "pro",
+    name: "Personal",
+    pieceLimit: 50,
+    monthlyPrice: 500
+  },
+  {
+    id: "studio",
+    name: "Studio",
+    pieceLimit: 200,
+    monthlyPrice: 1200
+  }
+] as const;
 
 const tenantCreateSchema = z.object({
   name: z.string().min(1).max(120),
@@ -22,7 +45,6 @@ const tenantCreateSchema = z.object({
 });
 
 const tenantUpdateSchema = z.object({
-  name: z.string().min(1).max(120).optional(),
   bio: z.string().max(1000).nullable().optional(),
   contactEmail: z.string().email().optional(),
   adminPassword: z.string().min(4).max(128).optional(),
@@ -31,7 +53,7 @@ const tenantUpdateSchema = z.object({
 });
 
 const checkoutSchema = z.object({
-  targetPlanId: z.enum(["pro"]),
+  targetPlanId: z.enum(paidPlanIds),
   successUrl: z.string().url(),
   cancelUrl: z.string().url()
 });
@@ -52,20 +74,20 @@ async function allocateTenantCode(app: FastifyInstance): Promise<string> {
   throw new Error("Unable to allocate tenant code");
 }
 
-async function ensureFreePlan(app: FastifyInstance): Promise<{ id: string }> {
-  return app.prisma.plan.upsert({
-    where: { id: "free" },
-    update: {},
-    create: {
-      id: "free",
-      name: "Free",
-      pieceLimit: 3,
-      monthlyPrice: 0
-    },
-    select: {
-      id: true
-    }
-  });
+async function ensurePlanCatalog(app: FastifyInstance): Promise<void> {
+  await Promise.all(
+    defaultPlans.map((plan) =>
+      app.prisma.plan.upsert({
+        where: { id: plan.id },
+        update: {
+          name: plan.name,
+          pieceLimit: plan.pieceLimit,
+          monthlyPrice: plan.monthlyPrice
+        },
+        create: plan
+      })
+    )
+  );
 }
 
 function withPublicPort(url: string): string {
@@ -84,14 +106,11 @@ function serializeTenant<T extends { socialLinks: string | null; theme: string |
   tenant: T
 ): Omit<T, "socialLinks" | "theme"> & { socialLinks: Record<string, string>; theme: Record<string, string> } {
   const { socialLinks, theme, ...rest } = tenant;
-  const parsedTheme = parseJson<Record<string, string>>(theme, {});
-  delete parsedTheme.adminPassword;
-  delete parsedTheme.adminPasswordHash;
 
   return {
     ...rest,
     socialLinks: parseJson<Record<string, string>>(socialLinks, {}),
-    theme: parsedTheme
+    theme: parseTenantTheme(theme, "name" in rest && typeof rest.name === "string" ? rest.name : "")
   };
 }
 
@@ -113,7 +132,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(409).send({ error: "Tenant slug already exists" });
     }
 
-    const freePlan = await ensureFreePlan(app);
+    await ensurePlanCatalog(app);
 
     const tenantCode = await allocateTenantCode(app);
     const subdomainHostname = `${slug}.${env.PLATFORM_DOMAIN}`;
@@ -129,7 +148,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       const createdTenant = await tx.tenant.create({
         data: {
           ownerUserId: request.user!.id,
-          planId: freePlan.id,
+          planId: "free",
           name,
           slug,
           bio,
@@ -275,7 +294,6 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (parse.data.name !== undefined) updateData.name = parse.data.name;
     if (parse.data.bio !== undefined) updateData.bio = parse.data.bio;
     if (parse.data.contactEmail !== undefined) updateData.contactEmail = parse.data.contactEmail;
     if (parse.data.socialLinks !== undefined) updateData.socialLinks = toJsonString(parse.data.socialLinks);
@@ -431,6 +449,8 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
 
     const { targetPlanId, successUrl, cancelUrl } = parse.data;
 
+    await ensurePlanCatalog(app);
+
     const targetPlan = await app.prisma.plan.findUnique({ where: { id: targetPlanId } });
     if (!targetPlan) {
       return reply.status(404).send({ error: "Target plan not found" });
@@ -550,8 +570,8 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return;
     }
 
-    if (tenant.planId !== "pro") {
-      return reply.status(403).send({ error: "Custom domains require pro plan" });
+    if (!customDomainEligiblePlanIds.has(tenant.planId)) {
+      return reply.status(403).send({ error: "Custom domains require a Personal or Studio plan" });
     }
 
     const parse = customDomainSchema.safeParse(request.body);

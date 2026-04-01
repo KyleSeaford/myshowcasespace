@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { ApiError, getMe, getTenant, logout, type TenantDetails, updateTenant, uploadImage } from "@/lib/api";
 
 type SettingsForm = {
-  name: string;
   bio: string;
   aboutPhotoUrl: string;
   contactEmail: string;
+  heroTitle: string;
   creatorName: string;
   discipline: string;
   location: string;
@@ -22,10 +22,10 @@ type SettingsForm = {
 };
 
 const emptyForm: SettingsForm = {
-  name: "",
   bio: "",
   aboutPhotoUrl: "",
   contactEmail: "",
+  heroTitle: "",
   creatorName: "",
   discipline: "",
   location: "",
@@ -52,6 +52,10 @@ function buildDashboardPath(tenant: TenantDetails): string {
     query.set("url", tenant.publishedUrl);
   }
   return `/dashboard?${query.toString()}`;
+}
+
+function resolveHeroTitle(heroTitle: string, creatorName: string, siteName: string): string {
+  return heroTitle.trim() || creatorName.trim() || siteName.trim();
 }
 
 const Settings = () => {
@@ -103,10 +107,10 @@ const Settings = () => {
         setBaseTheme(theme);
         setBaseSocialLinks(socialLinks);
         setForm({
-          name: details.name ?? "",
           bio: details.bio ?? "",
           aboutPhotoUrl: theme.aboutPhotoUrl ?? "",
           contactEmail: details.contactEmail ?? "",
+          heroTitle: theme.heroTitle ?? theme.creatorName ?? details.name ?? "",
           creatorName: theme.creatorName ?? "",
           discipline: theme.discipline ?? "",
           location: theme.location ?? "",
@@ -173,11 +177,6 @@ const Settings = () => {
       return;
     }
 
-    if (form.name.trim().length < 2) {
-      setErrorMessage("Site name must be at least 2 characters.");
-      return;
-    }
-
     if (!isValidEmail(form.contactEmail.trim())) {
       setErrorMessage("Please enter a valid contact email.");
       return;
@@ -208,6 +207,7 @@ const Settings = () => {
 
     const theme: Record<string, string> = {
       ...baseTheme,
+      heroTitle: resolveHeroTitle(form.heroTitle, form.creatorName, tenant.name),
       creatorName: form.creatorName.trim(),
       discipline: form.discipline.trim(),
       aboutPhotoUrl: form.aboutPhotoUrl.trim(),
@@ -218,7 +218,6 @@ const Settings = () => {
     setIsSaving(true);
     try {
       const updated = await updateTenant(tenant.id, {
-        name: form.name.trim(),
         bio: form.bio.trim() || null,
         contactEmail: form.contactEmail.trim(),
         socialLinks,
@@ -234,10 +233,10 @@ const Settings = () => {
       setBaseSocialLinks(updatedSocialLinks);
       setForm((current) => ({
         ...current,
-        name: updated.name ?? "",
         bio: updated.bio ?? "",
         aboutPhotoUrl: updatedTheme.aboutPhotoUrl ?? "",
         contactEmail: updated.contactEmail ?? "",
+        heroTitle: updatedTheme.heroTitle ?? updatedTheme.creatorName ?? updated.name ?? "",
         creatorName: updatedTheme.creatorName ?? "",
         discipline: updatedTheme.discipline ?? "",
         location: updatedTheme.location ?? "",
@@ -335,9 +334,8 @@ const Settings = () => {
                     <label htmlFor="site-name" className="text-sm text-foreground">Site name</label>
                     <Input
                       id="site-name"
-                      value={form.name}
-                      onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                      required
+                      value={tenant?.name ?? ""}
+                      readOnly
                     />
                   </div>
                   <div className="space-y-2">
@@ -345,16 +343,43 @@ const Settings = () => {
                     <Input id="site-slug" value={tenant?.slug ?? ""} readOnly />
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Site name and slug are locked after setup. Contact support if either needs to change.
+                </p>
 
                 <div className="space-y-2">
-                  <label htmlFor="bio" className="text-sm text-foreground">Bio</label>
-                  <textarea
-                    id="bio"
-                    value={form.bio}
-                    onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))}
-                    className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    placeholder="Short bio shown on your site."
+                  <label htmlFor="hero-title" className="text-sm text-foreground">Hero title</label>
+                  <Input
+                    id="hero-title"
+                    value={form.heroTitle}
+                    onChange={(event) => setForm((current) => ({ ...current, heroTitle: event.target.value }))}
+                    placeholder="Selected works by Bob Smith"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Main headline shown at the top of your site.
+                  </p>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="bio" className="text-sm text-foreground">Bio</label>
+                    <textarea
+                      id="bio"
+                      value={form.bio}
+                      onChange={(event) => setForm((current) => ({ ...current, bio: event.target.value }))}
+                      className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      placeholder="Short bio shown on your site."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="creator-name" className="text-sm text-foreground">Creator name</label>
+                    <Input
+                      id="creator-name"
+                      value={form.creatorName}
+                      onChange={(event) => setForm((current) => ({ ...current, creatorName: event.target.value }))}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
@@ -415,23 +440,13 @@ const Settings = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-5 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <label htmlFor="creator-name" className="text-sm text-foreground">Creator name</label>
-                    <Input
-                      id="creator-name"
-                      value={form.creatorName}
-                      onChange={(event) => setForm((current) => ({ ...current, creatorName: event.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="discipline" className="text-sm text-foreground">Discipline</label>
-                    <Input
-                      id="discipline"
-                      value={form.discipline}
-                      onChange={(event) => setForm((current) => ({ ...current, discipline: event.target.value }))}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <label htmlFor="discipline" className="text-sm text-foreground">Discipline</label>
+                  <Input
+                    id="discipline"
+                    value={form.discipline}
+                    onChange={(event) => setForm((current) => ({ ...current, discipline: event.target.value }))}
+                  />
                 </div>
 
                 <div className="space-y-2">
