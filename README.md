@@ -92,11 +92,36 @@ npm run dev:web
 - API runs on `http://localhost:3000`
 - Frontend runs on `http://localhost:5173`
 
+## Vercel Deployment
+
+This repo can be deployed as a single Vercel project:
+
+- The frontend is built from `frontend/` and served as the primary site.
+- The backend runs as a Vercel Node function from `api/[...path].ts`.
+- Frontend requests should keep using `/api`, which Vercel maps into the existing Fastify routes.
+
+Required Vercel environment variables:
+
+- `DATABASE_URL`
+- `SESSION_TTL_HOURS`
+- `PLATFORM_DOMAIN`
+- `PLATFORM_PROTOCOL`
+- `COOKIE_NAME`
+- `UPLOADTHING_TOKEN`
+
+Recommended setup notes:
+
+- Keep `NODE_ENV=production` in Vercel so auth cookies are marked `secure`.
+- Run `npm run prisma:deploy` against your Vercel database before or during production rollout.
+- Use a separate preview database if you enable preview deployments.
+- Do not rely on the local `uploads/` directory on Vercel. Runtime storage is ephemeral, so production uploads should go through UploadThing.
+
 ## Scripts
 
 - `npm run dev` - start dev server
 - `npm run dev:api` - start API dev server
 - `npm run dev:web` - start frontend dev server
+- `npm run build:vercel` - build the frontend artifact used by Vercel
 - `npm run build` - compile TypeScript to `dist/`
 - `npm run build:web` - build frontend
 - `npm run build:all` - build backend + frontend
