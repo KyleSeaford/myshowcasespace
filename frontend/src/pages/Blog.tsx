@@ -60,8 +60,8 @@ const Blog = () => {
         <div className="max-w-3xl border border-border bg-background p-6 md:p-8 space-y-3">
           <h2 className="font-heading text-3xl text-foreground">No blog posts found</h2>
           <p className="text-sm text-muted-foreground font-light leading-relaxed">
-            Add markdown files in <code className="rounded bg-secondary px-2 py-0.5 text-foreground">/public/blog-content</code> and list
-            them in <code className="rounded bg-secondary px-2 py-0.5 text-foreground">/public/blog-content/index.json</code>.
+            Add markdown files in <code className="rounded bg-secondary px-2 py-0.5 text-foreground">/frontend/public/blog-content</code>.
+            The blog now loads every <code className="rounded bg-secondary px-2 py-0.5 text-foreground">.md</code> file in that folder automatically.
           </p>
         </div>
       ) : null}

@@ -28,7 +28,7 @@ export async function createTestApp(): Promise<{ app: FastifyInstance; prisma: P
   process.env.PLATFORM_DOMAIN = "myshowcase.space";
   process.env.COOKIE_NAME = "ms_session";
 
-  execSync("npx prisma db push --force-reset --skip-generate", {
+  execSync("npx prisma db push --skip-generate", {
     stdio: "pipe",
     env: {
       ...process.env,
