@@ -14,13 +14,13 @@ const values = [
 const About = () => {
   return (
     <ContentPageLayout
-      title="About MyShowcase"
-      subtitle="MyShowcase is a portfolio platform built to make beautiful work feel effortless to present."
+      title="About Rivo"
+      subtitle="Rivo is a portfolio platform built to make beautiful work feel effortless to present."
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         <div className="space-y-5 text-muted-foreground font-light leading-relaxed">
           <p>
-            We built MyShowcase for people who care deeply about visual presentation but do not want
+            We built Rivo for people who care deeply about visual presentation but do not want
             to manage a complex website stack.
           </p>
           <p>
@@ -29,7 +29,7 @@ const About = () => {
           </p>
           <p>
             From students building their first body of work to established studios refreshing their
-            online presence, MyShowcase gives you a calm place to present your work.
+            online presence, Rivo gives you a calm place to present your work.
           </p>
         </div>
 

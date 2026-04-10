@@ -110,7 +110,7 @@ describe("api client", () => {
       new Response(
         JSON.stringify({
           published: true,
-          publishedUrl: "https://artist.myshowcase.space"
+          publishedUrl: "https://artist.getrivo.net"
         }),
         {
           status: 200,

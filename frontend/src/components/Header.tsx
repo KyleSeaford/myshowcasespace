@@ -11,7 +11,7 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/90 backdrop-blur-sm">
       <div className="max-w-7xl mx-auto px-6 md:px-10 flex items-center justify-between h-16">
         <a href="/" className="font-heading text-xl tracking-wide text-foreground">
-          myshowcase
+          Rivo
         </a>
 
         <nav className="hidden md:flex items-center gap-10 text-sm text-muted-foreground">

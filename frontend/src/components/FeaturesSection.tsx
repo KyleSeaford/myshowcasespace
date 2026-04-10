@@ -1,7 +1,7 @@
 const features = [
   {
     title: "Custom domains",
-    description: "Use your own domain or a free myshowcase.site subdomain.",
+    description: "Use your own domain or start with a free GetRivo.net address.",
   },
   {
     title: "Fast setup",
@@ -33,7 +33,7 @@ const FeaturesSection = () => {
           Simple by design, stronger in use
         </h2>
         <p className="text-muted-foreground font-light text-lg leading-relaxed max-w-2xl mb-14 md:mb-16">
-          MyShowcase keeps the interface quiet while still giving you everything you need to publish
+          Rivo keeps the interface quiet while still giving you everything you need to publish
           confidently and keep your portfolio current.
         </p>
 

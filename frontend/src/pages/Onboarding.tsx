@@ -337,7 +337,7 @@ const Onboarding = () => {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 md:gap-10">
         <header className="flex items-center justify-between">
           <Link to="/" className="font-heading text-2xl text-foreground">
-            myshowcase
+            Rivo
           </Link>
           <p className="text-sm text-muted-foreground">Step {currentStep + 1} of {totalSteps}</p>
         </header>
@@ -385,7 +385,7 @@ const Onboarding = () => {
                         readOnly
                       />
                       <p className="text-xs text-muted-foreground">
-                        Generated from your name. Will publish as `https://{generatedSlug}.myshowcase.space`.
+                        Generated from your name. Previewing as `https://{generatedSlug}.getrivo.net`.
                       </p>
                     </div>
                   </>
@@ -595,7 +595,7 @@ const Onboarding = () => {
                     <p className="font-medium text-foreground">Ready to save:</p>
                     <div className="grid gap-2 text-muted-foreground">
                       <p><span className="text-foreground">Site:</span> {form.name}</p>
-                      <p><span className="text-foreground">URL:</span> https://{generatedSlug}.myshowcase.space</p>
+                      <p><span className="text-foreground">URL:</span> https://{generatedSlug}.getrivo.net</p>
                       <p><span className="text-foreground">Hero title:</span> {resolveHeroTitle(form.heroTitle, form.creatorName, form.name)}</p>
                       <p><span className="text-foreground">Creator:</span> {form.creatorName}</p>
                       <p><span className="text-foreground">Contact:</span> {form.contactEmail}</p>

@@ -11,7 +11,7 @@ function normalizeSiteUrl(rawUrl: string, slug: string): string {
   }
 
   if (slug.trim()) {
-    return `https://${slug.trim()}.myshowcase.space`;
+    return `https://${slug.trim()}.getrivo.net`;
   }
 
   return "";

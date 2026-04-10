@@ -3,7 +3,7 @@ import portfolio1 from "@/assets/image.png";
 const showcaseHighlights = [
   {
     title: "Custom domains",
-    description: "Use your own domain name or start with a free myshowcase.site address.",
+    description: "Use your own domain name or start with a free GetRivo.net address.",
   },
   {
     title: "Easy to edit",
@@ -28,7 +28,7 @@ const ShowcaseSection = () => {
             <div className="rounded-t-2xl border border-border bg-[#1f1f1f] p-3 shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
               <div className="overflow-hidden rounded-lg bg-secondary border border-border">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background/80 text-[11px] text-muted-foreground">
-                  <span>myshowcase.site</span>
+                  <span>getrivo.net</span>
                   <span>Gallery | About | Contact</span>
                 </div>
                 <img

@@ -1,14 +1,14 @@
 ---
 title: "Template Post: Replace Me"
 slug: "template-post"
-author: "MyShowcase Team"
+author: "Rivo Team"
 publishedAt: "2026-03-30"
 excerpt: "This is a starter blog template. Replace this file with your real article content."
 ---
 
 # Template Post: Replace Me
 
-Use this template as your starting point for real blog posts in MyShowcase.
+Use this template as your starting point for real blog posts in Rivo.
 
 ## What to edit first
 

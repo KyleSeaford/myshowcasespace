@@ -109,7 +109,7 @@ const planCards = [
     price: "GBP 0/month",
     points: [
       "Good for testing the platform or launching a first simple portfolio.",
-      "Includes a MyShowcase subdomain and mobile-ready presentation.",
+      "Includes a GetRivo.net address and mobile-ready presentation.",
       "Best fit when you only need a small set of featured work."
     ]
   },
@@ -157,7 +157,7 @@ const troubleshootingGuides = [
   {
     title: "I forgot which password to use",
     answer:
-      "Your account password signs you into MyShowcase itself. Your admin password is separate and is used only inside /admin on the published site."
+      "Your account password signs you into Rivo itself. Your admin password is separate and is used only inside /admin on the published site."
   },
   {
     title: "My site information changed but the page still looks old",
@@ -167,7 +167,7 @@ const troubleshootingGuides = [
 ] as const;
 
 const securityNotes = [
-  "Account password: used for the main MyShowcase login.",
+  "Account password: used for the main Rivo login.",
   "Admin password: used only for /admin access on your published site.",
   "Legal acceptance: required before account access is granted.",
   "Captcha checks: may be required on sign-up or login to reduce spam and brute-force attempts.",
@@ -176,7 +176,7 @@ const securityNotes = [
 
 const faqs = [
   {
-    question: "Do I need coding skills to use MyShowcase?",
+    question: "Do I need coding skills to use Rivo?",
     answer:
       "No. The main flow is built around forms, uploads, and guided steps rather than code."
   },
@@ -248,7 +248,7 @@ const HelpCenter = () => {
                 The product is simple, but the journey still has stages.
               </h2>
               <p className="mt-4 max-w-3xl text-sm font-light leading-relaxed text-muted-foreground md:text-base">
-                MyShowcase is not just a public homepage. There is a clear path through account access,
+                Rivo is not just a public homepage. There is a clear path through account access,
                 onboarding, dashboard review, site admin, and later updates in Settings. This help center
                 is organized around that real flow so you can find the next right action quickly.
               </p>
@@ -297,7 +297,7 @@ const HelpCenter = () => {
                   <p className="text-sm">Two passwords matter</p>
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                  Your account password signs you into MyShowcase. Your admin password is separate and opens /admin.
+                  Your account password signs you into Rivo. Your admin password is separate and opens /admin.
                 </p>
               </div>
             </div>

@@ -6,7 +6,7 @@ const plans = [
     price: "\u00A30",
     period: "/month",
     features: [
-      "myshowcase.site subdomain",
+      "GetRivo.net address",
       "Up to 3 pieces",
       "Basic customization",
       "Mobile-ready portfolio",

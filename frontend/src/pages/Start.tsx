@@ -64,7 +64,7 @@ const Start = () => {
     () =>
       mode === "signup"
         ? "Start with your account, then complete the guided onboarding flow."
-        : "Sign in to continue onboarding and deploy your showcase site.",
+        : "Sign in to continue onboarding and deploy your Rivo site.",
     [mode]
   );
 
@@ -145,7 +145,7 @@ const Start = () => {
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 md:gap-14">
         <header className="flex items-center justify-between">
           <Link to="/" className="font-heading text-2xl text-foreground">
-            myshowcase
+            Rivo
           </Link>
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Back home
@@ -157,7 +157,7 @@ const Start = () => {
             <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Start</p>
             <h1 className="font-heading text-5xl md:text-6xl leading-[1.08] text-foreground">Build and launch your site in one flow.</h1>
             <p className="max-w-lg text-muted-foreground text-base md:text-lg leading-relaxed">
-              Account first. Then quick onboarding steps. Then your showcase is deployed.
+              Account first. Then quick onboarding steps. Then your Rivo site is deployed.
             </p>
 
             <div className="grid gap-3">

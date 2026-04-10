@@ -11,7 +11,7 @@ const documents = [
   {
     title: "Cookie Notice",
     href: "/legal/cookie-notice",
-    description: "How MyShowcase uses essential cookies and Vercel-hosted analytics or performance tooling."
+    description: "How Rivo uses essential cookies and Vercel-hosted analytics or performance tooling."
   },
   {
     title: "Terms of Service",
@@ -24,7 +24,7 @@ const Legal = () => {
   return (
     <ContentPageLayout
       title="Legal"
-      subtitle="The key rules and policies that apply when someone creates an account, logs in, uploads work, or uses MyShowcase."
+      subtitle="The key rules and policies that apply when someone creates an account, logs in, uploads work, or uses Rivo."
     >
       <div className="grid gap-8">
         <section className="border border-border bg-background p-6">

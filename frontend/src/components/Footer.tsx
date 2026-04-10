@@ -6,12 +6,12 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-6 md:px-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10">
           <div className="lg:col-span-2 space-y-3">
-            <p className="font-heading text-3xl text-foreground">MyShowcase</p>
+            <p className="font-heading text-3xl text-foreground">Rivo</p>
             <p className="text-sm text-muted-foreground font-light leading-relaxed max-w-sm">
               A calm, premium portfolio platform for photographers, artists, students, and
               creative teams.
             </p>
-            <p className="text-sm text-muted-foreground font-light">support@myshowcase.site</p>
+            <p className="text-sm text-muted-foreground font-light">hello@getrivo.net</p>
           </div>
 
           <div>
@@ -43,7 +43,7 @@ const Footer = () => {
         </div>
 
         <div className="mt-12 pt-6 border-t border-border text-xs text-muted-foreground flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-          <span>Copyright {currentYear} MyShowcase. All rights reserved.</span>
+          <span>Copyright {currentYear} Rivo. All rights reserved.</span>
           <span>Made by <a href="https://insightxpert.co.uk" className="hover:text-foreground transition-colors">InsightXpert</a></span>
         </div>
       </div>

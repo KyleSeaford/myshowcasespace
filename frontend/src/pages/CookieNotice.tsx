@@ -4,14 +4,14 @@ const sections = [
   {
     title: "About this Cookie Notice",
     paragraphs: [
-      "This Cookie Notice explains how MyShowcase uses cookies and similar technologies, including local storage, pixels, scripts, SDKs, device identifiers, and related browser-side storage or telemetry tools.",
+      "This Cookie Notice explains how Rivo uses cookies and similar technologies, including local storage, pixels, scripts, SDKs, device identifiers, and related browser-side storage or telemetry tools.",
       "Some of these technologies are essential to make the service work. Others help us measure performance, understand usage, prevent abuse, or support third-party tools that we rely on or may enable in the future."
     ]
   },
   {
     title: "Essential cookies and similar technologies",
     paragraphs: [
-      "MyShowcase uses essential first-party cookies to keep you signed in, secure your session, remember basic interface preferences, and protect the service against misuse. These cookies are necessary for core functionality and cannot be switched off through the site.",
+      "Rivo uses essential first-party cookies to keep you signed in, secure your session, remember basic interface preferences, and protect the service against misuse. These cookies are necessary for core functionality and cannot be switched off through the site.",
       "Examples include our session cookie for authentication and security, and interface state storage used to remember simple product preferences. If you block essential cookies, parts of the service, including login, onboarding, dashboard access, and account management, may stop working properly."
     ]
   },
@@ -39,7 +39,7 @@ const sections = [
   {
     title: "Types of cookies we may use",
     paragraphs: [
-      "Cookies and similar technologies that may be used in connection with MyShowcase can generally be grouped into a few categories."
+      "Cookies and similar technologies that may be used in connection with Rivo can generally be grouped into a few categories."
     ],
     bullets: [
       "Strictly necessary cookies for authentication, session integrity, routing, and basic security.",
@@ -54,7 +54,7 @@ const sections = [
     paragraphs: [
       "You can manage or block many cookies through your browser settings, content-blocking extensions, device controls, or privacy tools. You may also be able to clear local storage and similar browser-side data directly from your browser.",
       "If you block essential cookies, hCaptcha cookies, or similar anti-abuse technologies, protected forms and account access features may fail. If we introduce a cookie banner or consent manager in the future, your choices there will apply in addition to your browser settings.",
-      "Questions about our use of cookies or similar technologies can be sent to support@myshowcase.site."
+      "Questions about our use of cookies or similar technologies can be sent to hello@getrivo.net."
     ]
   },
   {
@@ -69,7 +69,7 @@ const CookieNotice = () => {
   return (
     <LegalDocumentPage
       title="Cookie Notice"
-      subtitle="How MyShowcase uses cookies and similar technologies, including anti-abuse, analytics, and core session tools."
+      subtitle="How Rivo uses cookies and similar technologies, including anti-abuse, analytics, and core session tools."
       sections={[...sections]}
     />
   );
