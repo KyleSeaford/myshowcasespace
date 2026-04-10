@@ -14,7 +14,8 @@ declare global {
 }
 
 const SCRIPT_ID = "hcaptcha-script";
-const SCRIPT_SRC = "https://js.hcaptcha.com/1/api.js?render=explicit";
+const SCRIPT_ONLOAD = "__myshowcaseHCaptchaOnLoad";
+const SCRIPT_SRC = `https://js.hcaptcha.com/1/api.js?render=explicit&onload=${SCRIPT_ONLOAD}`;
 
 let hcaptchaScriptPromise: Promise<void> | null = null;
 
@@ -28,9 +29,24 @@ function loadHCaptchaScript(): Promise<void> {
   }
 
   hcaptchaScriptPromise = new Promise((resolve, reject) => {
+    const finishLoad = () => {
+      if (window.hcaptcha) {
+        resolve();
+        return;
+      }
+
+      reject(new Error("hCaptcha API did not finish initializing."));
+    };
+
+    (window as Window & { [SCRIPT_ONLOAD]?: () => void })[SCRIPT_ONLOAD] = finishLoad;
+
     const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
     if (existing) {
-      existing.addEventListener("load", () => resolve(), { once: true });
+      if (window.hcaptcha) {
+        resolve();
+        return;
+      }
+
       existing.addEventListener("error", () => reject(new Error("Failed to load hCaptcha.")), {
         once: true
       });
@@ -42,7 +58,6 @@ function loadHCaptchaScript(): Promise<void> {
     script.src = SCRIPT_SRC;
     script.async = true;
     script.defer = true;
-    script.onload = () => resolve();
     script.onerror = () => reject(new Error("Failed to load hCaptcha."));
     document.head.appendChild(script);
   });

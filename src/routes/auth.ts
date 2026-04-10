@@ -10,7 +10,7 @@ import {
   verifyPassword
 } from "../lib/auth.js";
 import { requireAuth } from "../lib/guards.js";
-import { verifyHCaptchaToken } from "../lib/hcaptcha.js";
+import { getPublicHCaptchaConfig, verifyHCaptchaToken } from "../lib/hcaptcha.js";
 import { CURRENT_LEGAL_VERSION, LEGAL_ACCEPTANCE_ERROR } from "../lib/legal.js";
 
 const credentialsSchema = z.object({
@@ -34,6 +34,12 @@ async function recordLegalAcceptance(app: FastifyInstance, userId: string): Prom
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/auth/config", async (request, reply) => {
+    const hcaptcha = getPublicHCaptchaConfig(request.headers.host);
+
+    return reply.send({ hcaptcha });
+  });
+
   app.post("/auth/signup", async (request, reply) => {
     const parse = authRequestSchema.safeParse(request.body);
     if (!parse.success) {

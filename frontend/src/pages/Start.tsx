@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, LockKeyhole, ScrollText, Sparkles } from "lucide-react";
 import HCaptchaWidget from "@/components/HCaptchaWidget";
@@ -6,8 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ApiError, getMe, login, signup } from "@/lib/api";
-import { HCAPTCHA_SITE_KEY, isHCaptchaEnabled } from "@/lib/hcaptcha";
+import { ApiError, getAuthConfig, getMe, login, signup } from "@/lib/api";
 
 type AuthMode = "signup" | "login";
 
@@ -22,7 +21,39 @@ const Start = () => {
   const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const hCaptchaEnabled = isHCaptchaEnabled();
+  const [captchaSiteKey, setCaptchaSiteKey] = useState<string | null>(null);
+  const [isCaptchaEnabled, setIsCaptchaEnabled] = useState(false);
+  const [isCaptchaConfigLoading, setIsCaptchaConfigLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    void getAuthConfig()
+      .then((config) => {
+        if (!active) {
+          return;
+        }
+
+        setIsCaptchaEnabled(config.hcaptcha.enabled);
+        setCaptchaSiteKey(config.hcaptcha.siteKey);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        setErrorMessage("Unable to load login protection. Please refresh and try again.");
+      })
+      .finally(() => {
+        if (active) {
+          setIsCaptchaConfigLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const title = useMemo(
     () => (mode === "signup" ? "Create your account" : "Welcome back"),
@@ -74,7 +105,7 @@ const Start = () => {
       return;
     }
 
-    if (hCaptchaEnabled && !captchaToken) {
+    if (isCaptchaEnabled && !captchaToken) {
       setErrorMessage("Please complete the captcha challenge.");
       return;
     }
@@ -101,7 +132,7 @@ const Start = () => {
         setErrorMessage("Unable to continue. Please try again.");
       }
     } finally {
-      if (hCaptchaEnabled) {
+      if (isCaptchaEnabled) {
         setCaptchaToken("");
         setCaptchaResetSignal((value) => value + 1);
       }
@@ -252,11 +283,11 @@ const Start = () => {
                   </div>
                 </div>
 
-                {hCaptchaEnabled ? (
+                {isCaptchaEnabled && captchaSiteKey ? (
                   <div className="rounded-md border border-border bg-secondary/20 p-4">
                     <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_1fr] md:items-center">
                       <HCaptchaWidget
-                        siteKey={HCAPTCHA_SITE_KEY}
+                        siteKey={captchaSiteKey}
                         resetSignal={captchaResetSignal}
                         onVerify={(token) => {
                           setCaptchaToken(token);
@@ -281,12 +312,21 @@ const Start = () => {
                   </div>
                 ) : null}
 
+                {isCaptchaConfigLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading login protection...</p>
+                ) : null}
+
                 {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
 
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isSubmitting || !hasAcceptedLegal || (hCaptchaEnabled && !captchaToken)}
+                  disabled={
+                    isSubmitting ||
+                    isCaptchaConfigLoading ||
+                    !hasAcceptedLegal ||
+                    (isCaptchaEnabled && !captchaToken)
+                  }
                 >
                   {isSubmitting ? "Please wait..." : submitLabel}
                   <ArrowRight />

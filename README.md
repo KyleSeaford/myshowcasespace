@@ -110,13 +110,12 @@ Required Vercel environment variables:
 - `UPLOADTHING_TOKEN`
 - `HCAPTCHA_SITE_KEY`
 - `HCAPTCHA_SECRET_KEY`
-- `VITE_HCAPTCHA_SITE_KEY`
 
 Recommended setup notes:
 
 - Keep `NODE_ENV=production` in Vercel so auth cookies are marked `secure`.
 - hCaptcha should be disabled on `localhost` during local development. Use a real host alias such as `test.mydomain.com` if you want to exercise hCaptcha locally.
-- Expose `VITE_HCAPTCHA_SITE_KEY` to the frontend build for non-local environments where hCaptcha should render.
+- The frontend loads the public hCaptcha site key from the backend at runtime, so only the server-side `HCAPTCHA_SITE_KEY` and `HCAPTCHA_SECRET_KEY` need to be configured.
 - Run `npm run prisma:deploy` against your Vercel database before or during production rollout.
 - Use a separate preview database if you enable preview deployments.
 - Do not rely on the local `uploads/` directory on Vercel. Runtime storage is ephemeral, so production uploads should go through UploadThing.
@@ -153,6 +152,7 @@ After `npm run seed`:
 
 ### Auth
 
+- `GET /auth/config`
 - `POST /auth/signup`
 - `POST /auth/login`
 - `POST /auth/logout`

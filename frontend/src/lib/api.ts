@@ -13,6 +13,13 @@ export type TenantSummary = {
   publishedUrl: string | null;
 };
 
+export type AuthConfig = {
+  hcaptcha: {
+    enabled: boolean;
+    siteKey: string | null;
+  };
+};
+
 export type TenantDetails = TenantSummary & {
   bio: string | null;
   contactEmail: string;
@@ -118,6 +125,10 @@ export async function logout(): Promise<void> {
 
 export async function getMe(): Promise<{ user: AuthUser; tenants: TenantSummary[] }> {
   return request<{ user: AuthUser; tenants: TenantSummary[] }>("/auth/me");
+}
+
+export async function getAuthConfig(): Promise<AuthConfig> {
+  return request<AuthConfig>("/auth/config");
 }
 
 export type TenantCreatePayload = {

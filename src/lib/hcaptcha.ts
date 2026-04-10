@@ -12,12 +12,44 @@ type HCaptchaVerificationResult =
   | { ok: true; skipped: boolean }
   | { ok: false; statusCode: number; message: string; errorCodes: string[] };
 
+function getRequestHost(hostHeader?: string): string | undefined {
+  return hostHeader?.split(":")[0]?.trim().toLowerCase();
+}
+
+export function getPublicHCaptchaConfig(hostHeader?: string): {
+  enabled: boolean;
+  siteKey: string | null;
+} {
+  const requestHost = getRequestHost(hostHeader);
+  const isLocalDevHost = env.NODE_ENV !== "production" && requestHost && LOCAL_DEV_HOSTS.has(requestHost);
+
+  if (isLocalDevHost) {
+    return {
+      enabled: false,
+      siteKey: null
+    };
+  }
+
+  const siteKey = env.HCAPTCHA_SITE_KEY?.trim() || "";
+  if (!siteKey) {
+    return {
+      enabled: false,
+      siteKey: null
+    };
+  }
+
+  return {
+    enabled: true,
+    siteKey
+  };
+}
+
 export async function verifyHCaptchaToken(
   token: string | undefined,
   remoteIp: string | undefined,
   hostHeader?: string
 ): Promise<HCaptchaVerificationResult> {
-  const requestHost = hostHeader?.split(":")[0]?.trim().toLowerCase();
+  const requestHost = getRequestHost(hostHeader);
   if (env.NODE_ENV !== "production" && requestHost && LOCAL_DEV_HOSTS.has(requestHost)) {
     return { ok: true, skipped: true };
   }
