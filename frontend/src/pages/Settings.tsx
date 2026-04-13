@@ -374,6 +374,11 @@ const Settings = () => {
               <Button asChild>
                 <Link to={settingsPath}>Settings</Link>
               </Button>
+              {canChooseTheme ? (
+                <Button variant="outline" asChild>
+                  <Link to="/help-center#support">Get Support Here</Link>
+                </Button>
+              ) : null}
               <Button variant="ghost" onClick={handleLogout} disabled={isLoggingOut}>
                 {isLoggingOut ? "Logging out..." : "Log Out"}
               </Button>
