@@ -1,5 +1,7 @@
 import portfolio1 from "@/assets/image.png";
 
+const demoUrl = "https://bob-smith.getrivo.net/";
+
 const showcaseHighlights = [
   {
     title: "Custom domains",
@@ -24,11 +26,16 @@ const ShowcaseSection = () => {
         </h2>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-12 lg:gap-16 items-center">
-          <div className="relative w-full max-w-3xl mx-auto">
+          <a
+            href={demoUrl}
+            className="relative mx-auto block w-full max-w-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label="Open Bob Smith demo site"
+            target="_blank"
+          >
             <div className="rounded-t-2xl border border-border bg-[#1f1f1f] p-3 shadow-[0_25px_60px_rgba(0,0,0,0.15)]">
               <div className="overflow-hidden rounded-lg bg-secondary border border-border">
                 <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background/80 text-[11px] text-muted-foreground">
-                  <span>getrivo.net</span>
+                  <span>Bob Smith</span>
                   <span>Gallery | About | Contact</span>
                 </div>
                 <img
@@ -41,7 +48,7 @@ const ShowcaseSection = () => {
             </div>
             <div className="mx-auto h-2.5 w-[88%] bg-gradient-to-b from-zinc-400/70 to-zinc-500/40 rounded-b-[999px]" />
             <div className="mx-auto -mt-0.5 h-1.5 w-[48%] bg-zinc-400/35 rounded-b-[999px]" />
-          </div>
+          </a>
 
           <div className="space-y-7">
             {showcaseHighlights.map((item) => (

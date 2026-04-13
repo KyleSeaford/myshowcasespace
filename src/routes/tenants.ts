@@ -7,6 +7,7 @@ import { env } from "../config/env.js";
 import { parseJson, toJsonString } from "../lib/json.js";
 import { hashPassword } from "../lib/auth.js";
 import { parseTenantTheme } from "../lib/theme.js";
+import { deleteUploadThingFileByUrl } from "../lib/uploadthing.js";
 
 const socialLinksSchema = z.record(z.string().min(1).max(80), z.string().max(1000));
 
@@ -298,13 +299,22 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     if (parse.data.contactEmail !== undefined) updateData.contactEmail = parse.data.contactEmail;
     if (parse.data.socialLinks !== undefined) updateData.socialLinks = toJsonString(parse.data.socialLinks);
 
+    let previousAboutPhotoUrlToDelete: string | null = null;
     if (parse.data.theme !== undefined || parse.data.adminPassword !== undefined) {
       const currentTheme = parseJson<Record<string, string>>(tenant.theme, {});
+      const previousAboutPhotoUrl = currentTheme.aboutPhotoUrl?.trim() ?? "";
       const nextTheme = {
         ...currentTheme,
         ...(parse.data.theme ?? {})
       };
       delete nextTheme.adminPassword;
+
+      const hasAboutPhotoUpdate =
+        parse.data.theme !== undefined && Object.prototype.hasOwnProperty.call(parse.data.theme, "aboutPhotoUrl");
+      const nextAboutPhotoUrl = nextTheme.aboutPhotoUrl?.trim() ?? "";
+      if (hasAboutPhotoUpdate && previousAboutPhotoUrl && previousAboutPhotoUrl !== nextAboutPhotoUrl) {
+        previousAboutPhotoUrlToDelete = previousAboutPhotoUrl;
+      }
 
       if (parse.data.adminPassword !== undefined) {
         nextTheme.adminPasswordHash = await hashPassword(parse.data.adminPassword);
@@ -319,6 +329,10 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       },
       data: updateData
     });
+
+    if (previousAboutPhotoUrlToDelete) {
+      await deleteUploadThingFileByUrl(previousAboutPhotoUrlToDelete, request.log);
+    }
 
     return reply.send({ tenant: serializeTenant(updated) });
   });

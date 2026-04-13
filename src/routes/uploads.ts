@@ -3,12 +3,11 @@ import { stat } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { UTApi, UTFile } from "uploadthing/server";
-import { env } from "../config/env.js";
+import { UTFile } from "uploadthing/server";
 import { requireAuth, requireOwnedTenant } from "../lib/guards.js";
+import { uploadThingApi } from "../lib/uploadthing.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
-const utApi = env.UPLOADTHING_TOKEN ? new UTApi({ token: env.UPLOADTHING_TOKEN }) : null;
 
 const allowedImageMimeTypes: Record<string, string> = {
   "image/jpeg": ".jpg",
@@ -59,7 +58,7 @@ export const uploadRoutes: FastifyPluginAsync = async (app) => {
       return;
     }
 
-    if (!utApi) {
+    if (!uploadThingApi) {
       return reply.status(500).send({
         error: "UploadThing is not configured. Set UPLOADTHING_TOKEN in server env."
       });
@@ -112,7 +111,7 @@ export const uploadRoutes: FastifyPluginAsync = async (app) => {
       type: file.mimetype,
       customId
     });
-    const result = await utApi.uploadFiles(uploadFile);
+    const result = await uploadThingApi.uploadFiles(uploadFile);
 
     if (result.error) {
       request.log.error({ uploadthingError: result.error }, "UploadThing upload failed");
