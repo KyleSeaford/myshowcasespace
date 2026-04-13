@@ -6,10 +6,10 @@ const plans = [
     price: "\u00A30",
     period: "/month",
     features: [
-      "GetRivo.net address",
+      "*.getrivo.net address",
       "Up to 3 pieces",
+      "1 theme (default only)",
       "Basic customization",
-      "Mobile-ready portfolio",
     ],
     highlighted: false,
     paid: false,
@@ -21,7 +21,7 @@ const plans = [
     features: [
       "Everything in Starter",
       "Up to 50 pieces",
-      "More theme options",
+      "Choose from 3 themes",
       "Priority support",
     ],
     highlighted: true,
@@ -34,7 +34,7 @@ const plans = [
     features: [
       "Everything in Personal",
       "Up to 200 pieces",
-      "Team availability",
+      "Team access (if relevant)",
       "Custom domain support",
     ],
     highlighted: false,

@@ -9,9 +9,13 @@ export type TenantSummary = {
   name: string;
   slug: string;
   planId: string;
+  themeId: string;
+  themeLocked: boolean;
   published: boolean;
   publishedUrl: string | null;
 };
+
+export type TenantThemeId = "default" | "sunny" | "dark";
 
 export type AuthConfig = {
   hcaptcha: {
@@ -23,6 +27,15 @@ export type AuthConfig = {
 export type TenantDetails = TenantSummary & {
   bio: string | null;
   contactEmail: string;
+  plan?: {
+    id: string;
+    name: string;
+    pieceLimit: number | null;
+    monthlyPrice: number;
+  };
+  _count?: {
+    pieces: number;
+  };
   socialLinks: Record<string, string>;
   theme: Record<string, string>;
 };
@@ -169,6 +182,21 @@ export async function updateTenant(tenantId: string, payload: TenantUpdatePayloa
     method: "PATCH",
     body: payload
   });
+  return response.tenant;
+}
+
+export async function updateTenantTheme(tenantId: string, themeId: TenantThemeId): Promise<TenantDetails> {
+  const response = await request<{ tenant: TenantDetails | null }>(`/tenants/${tenantId}/theme`, {
+    method: "PATCH",
+    body: {
+      themeId
+    }
+  });
+
+  if (!response.tenant) {
+    throw new ApiError(404, "Tenant not found");
+  }
+
   return response.tenant;
 }
 

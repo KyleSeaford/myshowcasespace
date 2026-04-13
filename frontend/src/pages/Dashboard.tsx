@@ -17,6 +17,8 @@ function normalizeSiteUrl(rawUrl: string, slug: string): string {
   return "";
 }
 
+const paidSupportPlanIds = new Set(["personal", "pro", "studio"]);
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -61,12 +63,18 @@ const Dashboard = () => {
 
   const siteName = params.get("name") ?? tenant?.name ?? "Your site";
   const slug = params.get("slug") ?? tenant?.slug ?? "";
-  const planId = params.get("plan") ?? tenant?.planId ?? "free";
+  const planId = tenant?.planId ?? params.get("plan") ?? "free";
+  const planName =
+    tenant?.plan?.name ??
+    (planId === "studio" ? "Studio" : planId === "personal" || planId === "pro" ? "Personal" : "Starter Free");
+  const pieceLimit = tenant?.plan?.pieceLimit;
+  const pieceCount = tenant?._count?.pieces;
+  const hasPaidSupport = paidSupportPlanIds.has(planId);
   const siteUrl = normalizeSiteUrl(params.get("url") ?? tenant?.publishedUrl ?? "", slug);
   const adminUrl = siteUrl ? `${siteUrl}/admin` : "/admin";
   const settingsHref = tenantId ? `/settings?tenantId=${encodeURIComponent(tenantId)}` : "/settings";
   const paidPlanLabel = planId === "studio" ? "Studio" : "Personal";
-  const DashboardHref = tenantId ? `/dashboard?tenantId=${encodeURIComponent(tenantId)}` : "/dashboard";
+  const dashboardHref = tenantId ? `/dashboard?tenantId=${encodeURIComponent(tenantId)}` : "/dashboard";
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -96,11 +104,16 @@ const Dashboard = () => {
                 <Link to="/">Back to Home</Link>
               </Button>
               <Button asChild>
-                <Link to={DashboardHref}>Dashboard</Link>
+                <Link to={dashboardHref}>Dashboard</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link to={settingsHref}>Settings</Link>
               </Button>
+              {hasPaidSupport ? (
+                <Button variant="outline" asChild>
+                  <Link to="/help-center#support">Get Support Here</Link>
+                </Button>
+              ) : null}
               <Button variant="ghost" onClick={handleLogout} disabled={isLoggingOut}>
                 {isLoggingOut ? "Logging out..." : "Log Out"}
               </Button>
@@ -152,6 +165,12 @@ const Dashboard = () => {
                   <CardDescription>To unlock paid features, follow these steps:</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <p>
+                    Current plan: <span className="text-foreground">{planName}</span>
+                    {typeof pieceCount === "number" && typeof pieceLimit === "number"
+                      ? ` (${pieceCount}/${pieceLimit} pieces)`
+                      : null}
+                  </p>
                   <p>1. Open the pricing page.</p>
                   <p>2. Choose the {paidPlanLabel} or Studio plan.</p>
                   <p>3. Complete checkout to upgrade this site.</p>

@@ -6,34 +6,14 @@ import { newApiKey, newTenantCode } from "../lib/crypto.js";
 import { env } from "../config/env.js";
 import { parseJson, toJsonString } from "../lib/json.js";
 import { hashPassword } from "../lib/auth.js";
-import { parseTenantTheme } from "../lib/theme.js";
+import { parseTenantTheme, THEME_IDS } from "../lib/theme.js";
 import { deleteUploadThingFileByUrl } from "../lib/uploadthing.js";
+import { DEFAULT_PLANS, PAID_PLAN_ALIASES, PAID_PLAN_IDS, PLAN_IDS, isPaidPlanId } from "../lib/plans.js";
 
 const socialLinksSchema = z.record(z.string().min(1).max(80), z.string().max(1000));
 
 const themeSchema = z.record(z.string().min(1).max(80), z.string().max(2_000_000));
-const paidPlanIds = ["pro", "studio"] as const;
-const customDomainEligiblePlanIds = new Set<string>(paidPlanIds);
-const defaultPlans = [
-  {
-    id: "free",
-    name: "Free",
-    pieceLimit: 3,
-    monthlyPrice: 0
-  },
-  {
-    id: "pro",
-    name: "Personal",
-    pieceLimit: 50,
-    monthlyPrice: 500
-  },
-  {
-    id: "studio",
-    name: "Studio",
-    pieceLimit: 200,
-    monthlyPrice: 1200
-  }
-] as const;
+const customDomainEligiblePlanIds = new Set<string>(PAID_PLAN_ALIASES);
 
 const tenantCreateSchema = z.object({
   name: z.string().min(1).max(120),
@@ -53,8 +33,12 @@ const tenantUpdateSchema = z.object({
   theme: themeSchema.optional()
 });
 
+const themeSelectionSchema = z.object({
+  themeId: z.enum(THEME_IDS)
+});
+
 const checkoutSchema = z.object({
-  targetPlanId: z.enum(paidPlanIds),
+  targetPlanId: z.enum(PAID_PLAN_IDS),
   successUrl: z.string().url(),
   cancelUrl: z.string().url()
 });
@@ -77,7 +61,7 @@ async function allocateTenantCode(app: FastifyInstance): Promise<string> {
 
 async function ensurePlanCatalog(app: FastifyInstance): Promise<void> {
   await Promise.all(
-    defaultPlans.map((plan) =>
+    DEFAULT_PLANS.map((plan) =>
       app.prisma.plan.upsert({
         where: { id: plan.id },
         update: {
@@ -115,6 +99,34 @@ function serializeTenant<T extends { socialLinks: string | null; theme: string |
   };
 }
 
+async function findTenantDetails(app: FastifyInstance, tenantId: string) {
+  return app.prisma.tenant.findUnique({
+    where: {
+      id: tenantId
+    },
+    include: {
+      plan: true,
+      domains: true,
+      apiKeys: {
+        where: {
+          revokedAt: null
+        },
+        select: {
+          id: true,
+          keyPreview: true,
+          label: true,
+          createdAt: true
+        }
+      },
+      _count: {
+        select: {
+          pieces: true
+        }
+      }
+    }
+  });
+}
+
 export const tenantRoutes: FastifyPluginAsync = async (app) => {
   app.post("/tenants", async (request, reply) => {
     if (!(await requireAuth(request, reply))) {
@@ -149,7 +161,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       const createdTenant = await tx.tenant.create({
         data: {
           ownerUserId: request.user!.id,
-          planId: "free",
+          planId: PLAN_IDS.starterFree,
           name,
           slug,
           bio,
@@ -249,31 +261,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return;
     }
 
-    const payload = await app.prisma.tenant.findUnique({
-      where: {
-        id: tenant.id
-      },
-      include: {
-        plan: true,
-        domains: true,
-        apiKeys: {
-          where: {
-            revokedAt: null
-          },
-          select: {
-            id: true,
-            keyPreview: true,
-            label: true,
-            createdAt: true
-          }
-        },
-        _count: {
-          select: {
-            pieces: true
-          }
-        }
-      }
-    });
+    const payload = await findTenantDetails(app, tenant.id);
 
     return reply.send({ tenant: payload ? serializeTenant(payload) : null });
   });
@@ -335,6 +323,44 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     }
 
     return reply.send({ tenant: serializeTenant(updated) });
+  });
+
+  app.patch("/tenants/:tenantId/theme", async (request, reply) => {
+    const params = z.object({ tenantId: z.string().min(1) }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: "Invalid tenant id" });
+    }
+
+    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
+    if (!tenant) {
+      return;
+    }
+
+    const parse = themeSelectionSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    if (!isPaidPlanId(tenant.planId)) {
+      return reply.status(403).send({ error: "Theme selection requires a Personal or Studio plan" });
+    }
+
+    if (tenant.themeLocked) {
+      return reply.status(409).send({ error: "Theme has already been set" });
+    }
+
+    await app.prisma.tenant.update({
+      where: {
+        id: tenant.id
+      },
+      data: {
+        themeId: parse.data.themeId,
+        themeLocked: true
+      }
+    });
+
+    const updated = await findTenantDetails(app, tenant.id);
+    return reply.send({ tenant: updated ? serializeTenant(updated) : null });
   });
 
   app.post("/tenants/:tenantId/publish", async (request, reply) => {

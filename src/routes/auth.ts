@@ -153,6 +153,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         name: true,
         slug: true,
         planId: true,
+        themeId: true,
+        themeLocked: true,
         published: true,
         publishedUrl: true
       }

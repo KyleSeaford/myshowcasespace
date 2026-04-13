@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { CURRENT_LEGAL_VERSION } from "../src/lib/legal.js";
+import { DEFAULT_PLANS, PLAN_IDS } from "../src/lib/plans.js";
 
 const prisma = new PrismaClient();
 
@@ -10,23 +11,15 @@ function sha256(value: string): string {
 }
 
 async function main(): Promise<void> {
-  await prisma.plan.upsert({
-    where: { id: "free" },
-    update: { name: "Free", pieceLimit: 3, monthlyPrice: 0 },
-    create: { id: "free", name: "Free", pieceLimit: 3, monthlyPrice: 0 }
-  });
-
-  await prisma.plan.upsert({
-    where: { id: "pro" },
-    update: { name: "Personal", pieceLimit: 50, monthlyPrice: 500 },
-    create: { id: "pro", name: "Personal", pieceLimit: 50, monthlyPrice: 500 }
-  });
-
-  await prisma.plan.upsert({
-    where: { id: "studio" },
-    update: { name: "Studio", pieceLimit: 200, monthlyPrice: 1200 },
-    create: { id: "studio", name: "Studio", pieceLimit: 200, monthlyPrice: 1200 }
-  });
+  await Promise.all(
+    DEFAULT_PLANS.map((plan) =>
+      prisma.plan.upsert({
+        where: { id: plan.id },
+        update: { name: plan.name, pieceLimit: plan.pieceLimit, monthlyPrice: plan.monthlyPrice },
+        create: plan
+      })
+    )
+  );
 
   const demoEmail = "demo@myshowcase.space";
   const passwordHash = await bcrypt.hash("Password123!", 12);
@@ -53,13 +46,13 @@ async function main(): Promise<void> {
     where: { slug: tenantSlug },
     update: {
       ownerUserId: demoUser.id,
-      planId: "free",
+      planId: PLAN_IDS.starterFree,
       published: true,
       publishedUrl: `https://${tenantSlug}.myshowcase.space`
     },
     create: {
       ownerUserId: demoUser.id,
-      planId: "free",
+      planId: PLAN_IDS.starterFree,
       name: "Demo Artist",
       slug: tenantSlug,
       bio: "A sample showcase profile created by seed.",

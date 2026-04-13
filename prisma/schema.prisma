@@ -72,6 +72,8 @@ model Tenant {
   contactEmail String
   socialLinks  String?
   theme        String?
+  themeId      String    @default("default")
+  themeLocked  Boolean   @default(false)
   tenantCode   String    @unique
   published    Boolean   @default(false)
   publishedUrl String?

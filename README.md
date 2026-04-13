@@ -30,17 +30,18 @@ Self-serve SaaS MVP where artists can sign up, create a tenant, manage pieces, s
   - Auto-generate tenant code and tenant API key
 - CMS for pieces:
   - CRUD + publish/unpublish for pieces
-  - Free plan hard limit: 3 pieces
+  - Plan limits: Starter Free 3 pieces, Personal 50 pieces, Studio 200 pieces
 - Publishing:
   - Publish/unpublish tenant site
   - Generate and persist subdomain: `{tenantSlug}.myshowcase.space`
 - Plans + billing-ready flow:
-  - Plan model (`free`, `pro`)
+  - Plan model (`free`, `pro`, `studio`)
   - Upgrade flow with real checkout-session persistence (Stripe placeholder provider refs)
   - Complete checkout endpoint updates tenant plan + billing account status
-  - Pro-only custom domain endpoint
+  - Paid-plan custom domain endpoint
 - Tenant-scoped API:
   - API-key + tenant-code authenticated public data endpoint for spawned showcase sites
+  - One-time paid-plan theme selection for published-site admin flows
 - DX:
   - Prisma schema + migration
   - Seed script
@@ -185,9 +186,18 @@ After `npm run seed`:
 
 - `GET /tenant-api/v1/:tenantCode/site`
   - Requires header: `x-tenant-api-key: <raw-api-key>`
+- `PATCH /tenant-api/v1/:tenantCode/theme`
+  - Requires header: `x-tenant-api-key: <raw-api-key>`
+  - Body: `{ "themeId": "default" | "sunny" | "dark" }`
+  - Only Personal and Studio tenants can set this, and only while `themeLocked = false`
+- `PATCH /admin/theme`
+  - Hostname-based variant for published admin pages
+  - Requires headers: `x-tenant-hostname: <hostname>` and `x-tenant-api-key: <raw-api-key>`
+  - Body: `{ "themeId": "default" | "sunny" | "dark" }`
 
 ### Public read endpoint
 
+- `GET /public/site?hostname={hostname}`
 - `GET /public/sites/:slug`
 
 ## Frontend Routes
@@ -213,17 +223,19 @@ Tables:
 
 Notes:
 
-- `Plan.pieceLimit = 3` for `free`, `null` (unlimited) for `pro`
+- `Plan.pieceLimit = 3` for `free`, `50` for `pro`, and `200` for `studio`
+- `Tenant.themeId = default | sunny | dark`; `Tenant.themeLocked` prevents repeat user changes after selection
 - Tenant stores generated `tenantCode` and publication status/url
 - API keys are hashed (`keyHash`) at rest; raw key is shown only on creation/rotation response
-- Piece limit enforced at create-time for free tenants
+- Piece limit enforced at create-time for every plan with a configured limit
+- Theme selection is enforced server-side. Starter Free stays on `default`; Personal/Studio can choose once.
 
 ## Testing
 
 Implemented tests:
 
 - `tests/auth.test.ts` - signup/session/me/logout flow
-- `tests/pieces-limit.test.ts` - free-plan piece limit enforcement
+- `tests/pieces-limit.test.ts` - plan-based piece limit enforcement
 
 Run with:
 

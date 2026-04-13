@@ -1,5 +1,8 @@
 import { parseJson } from "./json.js";
 
+export const THEME_IDS = ["default", "sunny", "dark"] as const;
+export const DEFAULT_THEME_ID = "default";
+
 function normalizeThemeValue(value: string | undefined): string {
   return value?.trim() ?? "";
 }

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { execSync } from "node:child_process";
 import type { FastifyInstance } from "fastify";
 import type { PrismaClient } from "@prisma/client";
+import { DEFAULT_PLANS } from "../src/lib/plans.js";
 
 function getBaseDatabaseUrl(): string {
   const value = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -44,11 +45,7 @@ export async function createTestApp(): Promise<{ app: FastifyInstance; prisma: P
   const prisma = new PrismaClient();
 
   await prisma.plan.createMany({
-    data: [
-      { id: "free", name: "Free", pieceLimit: 3, monthlyPrice: 0 },
-      { id: "pro", name: "Personal", pieceLimit: 50, monthlyPrice: 500 },
-      { id: "studio", name: "Studio", pieceLimit: 200, monthlyPrice: 1200 }
-    ]
+    data: [...DEFAULT_PLANS]
   });
 
   const app = buildApp({ prisma, logger: false });

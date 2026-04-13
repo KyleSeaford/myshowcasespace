@@ -4,7 +4,17 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ApiError, getMe, getTenant, logout, type TenantDetails, updateTenant, uploadImage } from "@/lib/api";
+import {
+  ApiError,
+  getMe,
+  getTenant,
+  logout,
+  type TenantDetails,
+  type TenantThemeId,
+  updateTenant,
+  updateTenantTheme,
+  uploadImage
+} from "@/lib/api";
 
 type SettingsForm = {
   bio: string;
@@ -37,6 +47,26 @@ const emptyForm: SettingsForm = {
   newAdminPassword: "",
   confirmAdminPassword: ""
 };
+
+const paidPlanIds = new Set(["personal", "pro", "studio"]);
+
+const themeOptions: Array<{ id: TenantThemeId; label: string; description: string }> = [
+  {
+    id: "default",
+    label: "Default",
+    description: "Clean and direct."
+  },
+  {
+    id: "sunny",
+    label: "Sunny",
+    description: "Warm and bright."
+  },
+  {
+    id: "dark",
+    label: "Dark",
+    description: "Bold and high contrast."
+  }
+];
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -73,6 +103,10 @@ const Settings = () => {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [themeChoice, setThemeChoice] = useState<TenantThemeId>("default");
+  const [themeError, setThemeError] = useState("");
+  const [themeSuccess, setThemeSuccess] = useState("");
+  const [isSavingTheme, setIsSavingTheme] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -105,6 +139,9 @@ const Settings = () => {
         const socialLinks = details.socialLinks ?? {};
 
         setTenant(details);
+        setThemeChoice((details.themeId as TenantThemeId | undefined) ?? "default");
+        setThemeError("");
+        setThemeSuccess("");
         setBaseTheme(theme);
         setBaseSocialLinks(socialLinks);
         setForm({
@@ -154,6 +191,10 @@ const Settings = () => {
   }, [tenant, tenantId]);
 
   const settingsPath = tenantId ? `/settings?tenantId=${encodeURIComponent(tenantId)}` : "/settings";
+  const canChooseTheme = tenant ? paidPlanIds.has(tenant.planId) : false;
+  const currentThemeLabel =
+    themeOptions.find((option) => option.id === ((tenant?.themeId as TenantThemeId | undefined) ?? "default"))?.label ??
+    "Default";
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -257,6 +298,28 @@ const Settings = () => {
     }
   };
 
+  const handleThemeSave = async () => {
+    setThemeError("");
+    setThemeSuccess("");
+
+    if (!tenant?.id) {
+      setThemeError("Missing tenant context.");
+      return;
+    }
+
+    setIsSavingTheme(true);
+    try {
+      const updated = await updateTenantTheme(tenant.id, themeChoice);
+      setTenant(updated);
+      setThemeChoice((updated.themeId as TenantThemeId | undefined) ?? "default");
+      setThemeSuccess("Theme set.");
+    } catch (error) {
+      setThemeError(error instanceof ApiError ? error.message : "Unable to set theme.");
+    } finally {
+      setIsSavingTheme(false);
+    }
+  };
+
   const handleAboutPhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -347,6 +410,63 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground">
                   Site name and slug are locked after setup. Contact support if either needs to change.
                 </p>
+
+                <section className="space-y-4 border-y border-border py-5">
+                  <div className="space-y-1">
+                    <h2 className="font-heading text-2xl font-light text-foreground">Theme</h2>
+                    {tenant?.themeLocked ? (
+                      <p className="text-sm text-muted-foreground">
+                        Theme: <span className="text-foreground">{currentThemeLabel}</span>. Your theme has been set.
+                      </p>
+                    ) : canChooseTheme ? (
+                      <p className="text-sm text-muted-foreground">
+                        Choose your theme. This can only be set once.
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Theme: <span className="text-foreground">Default</span>. Upgrade to choose a theme.
+                      </p>
+                    )}
+                  </div>
+
+                  {canChooseTheme && !tenant?.themeLocked ? (
+                    <>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {themeOptions.map((option) => {
+                          const isSelected = themeChoice === option.id;
+
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => setThemeChoice(option.id)}
+                              className={`rounded-md border p-4 text-left transition-colors ${
+                                isSelected ? "border-foreground bg-secondary/60" : "border-border hover:border-foreground"
+                              }`}
+                              aria-pressed={isSelected}
+                            >
+                              <span className="block text-sm font-medium text-foreground">{option.label}</span>
+                              <span className="mt-1 block text-xs text-muted-foreground">{option.description}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {themeError ? <p className="text-sm text-destructive">{themeError}</p> : null}
+                      {themeSuccess ? <p className="text-sm text-emerald-600">{themeSuccess}</p> : null}
+                      <div className="flex items-center justify-end">
+                        <Button type="button" onClick={handleThemeSave} disabled={isSavingTheme}>
+                          {isSavingTheme ? "Saving theme..." : "Save theme"}
+                        </Button>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {!canChooseTheme ? (
+                    <Button variant="outline" type="button" asChild>
+                      <Link to="/#pricing">Go to pricing</Link>
+                    </Button>
+                  ) : null}
+                </section>
 
                 <div className="space-y-2">
                   <label htmlFor="hero-title" className="text-sm text-foreground">Hero title</label>
