@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, LockKeyhole, ScrollText, Sparkles } from "lucide-react";
 import HCaptchaWidget from "@/components/HCaptchaWidget";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -224,9 +225,8 @@ const Start = () => {
                   <label htmlFor="password" className="text-sm text-foreground">
                     Password
                   </label>
-                  <Input
+                  <PasswordInput
                     id="password"
-                    type="password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     required
@@ -241,9 +241,8 @@ const Start = () => {
                     <label htmlFor="confirm-password" className="text-sm text-foreground">
                       Confirm password
                     </label>
-                    <Input
+                    <PasswordInput
                       id="confirm-password"
-                      type="password"
                       value={confirmPassword}
                       onChange={(event) => setConfirmPassword(event.target.value)}
                       required

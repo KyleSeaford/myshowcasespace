@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -495,9 +496,8 @@ const Settings = () => {
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="new-admin-password" className="text-sm text-foreground">New admin password (optional)</label>
-                    <Input
+                    <PasswordInput
                       id="new-admin-password"
-                      type="password"
                       value={form.newAdminPassword}
                       onChange={(event) =>
                         setForm((current) => ({ ...current, newAdminPassword: event.target.value }))
@@ -508,9 +508,8 @@ const Settings = () => {
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="confirm-admin-password" className="text-sm text-foreground">Confirm new admin password</label>
-                    <Input
+                    <PasswordInput
                       id="confirm-admin-password"
-                      type="password"
                       value={form.confirmAdminPassword}
                       onChange={(event) =>
                         setForm((current) => ({ ...current, confirmAdminPassword: event.target.value }))

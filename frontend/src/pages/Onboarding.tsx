@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Rocket, Sparkles } from "lucide-react";
+import { PasswordInput } from "@/components/PasswordInput";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -563,9 +564,8 @@ const Onboarding = () => {
 
                     <div className="space-y-2">
                       <label htmlFor="admin-password" className="text-sm text-foreground">Admin password</label>
-                      <Input
+                      <PasswordInput
                         id="admin-password"
-                        type="password"
                         value={form.adminPassword}
                         onChange={(event) => setForm((previous) => ({ ...previous, adminPassword: event.target.value }))}
                         minLength={4}
@@ -576,9 +576,8 @@ const Onboarding = () => {
 
                     <div className="space-y-2">
                       <label htmlFor="confirm-admin-password" className="text-sm text-foreground">Confirm admin password</label>
-                      <Input
+                      <PasswordInput
                         id="confirm-admin-password"
-                        type="password"
                         value={form.confirmAdminPassword}
                         onChange={(event) =>
                           setForm((previous) => ({ ...previous, confirmAdminPassword: event.target.value }))
