@@ -35,7 +35,7 @@ const plans = [
       "Everything in Personal",
       "Up to 200 pieces",
       "Studio team access",
-      "Custom domain support",
+      "Custom domain support - coming soon",
     ],
     highlighted: false,
     paid: true,
