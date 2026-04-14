@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { z } from "zod";
-import { requireOwnedTenant } from "../lib/guards.js";
+import { requireTenantAccess } from "../lib/guards.js";
 import { parseJson, toJsonString } from "../lib/json.js";
 
 const paramsSchema = z.object({
@@ -69,10 +69,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid tenant id" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const pieces = await app.prisma.piece.findMany({
       where: {
@@ -92,10 +93,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid tenant id" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const parse = pieceCreateSchema.safeParse(request.body);
     if (!parse.success) {
@@ -146,10 +148,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid params" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const piece = await app.prisma.piece.findFirst({
       where: {
@@ -177,10 +180,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid params" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const parse = pieceUpdateSchema.safeParse(request.body);
     if (!parse.success) {
@@ -244,10 +248,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid params" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const deleted = await app.prisma.piece.deleteMany({
       where: {
@@ -275,10 +280,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid params" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const piece = await app.prisma.piece.findFirst({
       where: {
@@ -315,10 +321,11 @@ export const pieceRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid params" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const piece = await app.prisma.piece.findFirst({
       where: {

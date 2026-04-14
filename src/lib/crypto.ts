@@ -4,10 +4,12 @@ import { customAlphabet } from "nanoid";
 const apiKeyAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const tenantCodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const sessionAlphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
+const temporaryPasswordAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 const createSessionToken = customAlphabet(sessionAlphabet, 64);
 const createApiSecret = customAlphabet(apiKeyAlphabet, 48);
 const createTenantCode = customAlphabet(tenantCodeAlphabet, 10);
+const createTemporaryPassword = customAlphabet(temporaryPasswordAlphabet, 14);
 
 export function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -29,4 +31,8 @@ export function newApiKey(): { raw: string; preview: string; hash: string } {
     preview: `${raw.slice(0, 12)}...`,
     hash: sha256(raw)
   };
+}
+
+export function newTemporaryPassword(): string {
+  return createTemporaryPassword();
 }

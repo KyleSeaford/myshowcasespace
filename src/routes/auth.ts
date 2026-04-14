@@ -23,6 +23,11 @@ const authRequestSchema = credentialsSchema.extend({
   captchaToken: z.string().min(1).optional()
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8).max(128),
+  newPassword: z.string().min(8).max(128)
+});
+
 async function recordLegalAcceptance(app: FastifyInstance, userId: string): Promise<void> {
   await app.prisma.user.update({
     where: { id: userId },
@@ -79,6 +84,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       user: {
         id: user.id,
         email: user.email,
+        passwordChangeRequired: user.passwordChangeRequired,
         createdAt: user.createdAt
       }
     });
@@ -118,7 +124,59 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       user: {
         id: user.id,
         email: user.email,
+        passwordChangeRequired: user.passwordChangeRequired,
         createdAt: user.createdAt
+      }
+    });
+  });
+
+  app.post("/auth/change-password", async (request, reply) => {
+    if (!(await requireAuth(request, reply))) {
+      return;
+    }
+
+    const parse = changePasswordSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    const user = await app.prisma.user.findUnique({
+      where: {
+        id: request.user!.id
+      }
+    });
+
+    if (!user || !(await verifyPassword(parse.data.currentPassword, user.passwordHash))) {
+      return reply.status(401).send({ error: "Current password is incorrect" });
+    }
+
+    const passwordHash = await hashPassword(parse.data.newPassword);
+    const updated = await app.prisma.user.update({
+      where: {
+        id: user.id
+      },
+      data: {
+        passwordHash,
+        passwordChangeRequired: false
+      }
+    });
+
+    await app.prisma.tenantInvitation.updateMany({
+      where: {
+        invitedUserId: user.id,
+        acceptedAt: null
+      },
+      data: {
+        acceptedAt: new Date()
+      }
+    });
+
+    return reply.send({
+      user: {
+        id: updated.id,
+        email: updated.email,
+        passwordChangeRequired: updated.passwordChangeRequired,
+        createdAt: updated.createdAt
       }
     });
   });
@@ -141,7 +199,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const user = request.user!;
-    const tenants = await app.prisma.tenant.findMany({
+    const ownedTenants = await app.prisma.tenant.findMany({
       where: {
         ownerUserId: user.id
       },
@@ -156,17 +214,63 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         themeId: true,
         themeLocked: true,
         published: true,
-        publishedUrl: true
+        publishedUrl: true,
+        createdAt: true
       }
     });
+
+    const tenantMemberships = await app.prisma.tenantMember.findMany({
+      where: {
+        userId: user.id
+      },
+      orderBy: {
+        createdAt: "asc"
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            planId: true,
+            themeId: true,
+            themeLocked: true,
+            published: true,
+            publishedUrl: true,
+            createdAt: true
+          }
+        }
+      }
+    });
+
+    const tenantsById = new Map<string, Record<string, unknown>>();
+    for (const tenant of ownedTenants) {
+      tenantsById.set(tenant.id, {
+        ...tenant,
+        userRole: "OWNER"
+      });
+    }
+    for (const membership of tenantMemberships) {
+      if (!tenantsById.has(membership.tenant.id)) {
+        tenantsById.set(membership.tenant.id, {
+          ...membership.tenant,
+          userRole: membership.role
+        });
+      }
+    }
 
     return reply.send({
       user: {
         id: user.id,
         email: user.email,
+        passwordChangeRequired: user.passwordChangeRequired,
         createdAt: user.createdAt
       },
-      tenants
+      tenants: Array.from(tenantsById.values()).sort((first, second) => {
+        const firstTime = new Date(String(first.createdAt)).getTime();
+        const secondTime = new Date(String(second.createdAt)).getTime();
+        return firstTime - secondTime;
+      })
     });
   });
 };

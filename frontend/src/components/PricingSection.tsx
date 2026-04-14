@@ -34,7 +34,7 @@ const plans = [
     features: [
       "Everything in Personal",
       "Up to 200 pieces",
-      "Team access (if relevant)",
+      "Studio team access",
       "Custom domain support",
     ],
     highlighted: false,

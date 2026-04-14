@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { CheckoutStatus, DomainType } from "@prisma/client";
+import { CheckoutStatus, DomainType, TenantMemberRole } from "@prisma/client";
 import { z } from "zod";
-import { requireAuth, requireOwnedTenant } from "../lib/guards.js";
-import { newApiKey, newTenantCode } from "../lib/crypto.js";
+import { requireAuth, requireOwnedTenant, requireTenantAccess } from "../lib/guards.js";
+import { newApiKey, newTenantCode, newTemporaryPassword } from "../lib/crypto.js";
 import { env } from "../config/env.js";
+import { sendTeamInviteEmail } from "../lib/email.js";
 import { parseJson, toJsonString } from "../lib/json.js";
 import { hashPassword } from "../lib/auth.js";
 import { parseTenantTheme, THEME_IDS } from "../lib/theme.js";
@@ -35,6 +36,10 @@ const tenantUpdateSchema = z.object({
 
 const themeSelectionSchema = z.object({
   themeId: z.enum(THEME_IDS)
+});
+
+const teamInviteSchema = z.object({
+  email: z.string().email().max(254)
 });
 
 const checkoutSchema = z.object({
@@ -99,6 +104,46 @@ function serializeTenant<T extends { socialLinks: string | null; theme: string |
   };
 }
 
+function serializeTenantForUser<T extends { socialLinks: string | null; theme: string | null }>(
+  tenant: T & {
+    members?: Array<{
+      id: string;
+      role: TenantMemberRole;
+      createdAt: Date;
+      user: {
+        id: string;
+        email: string;
+      };
+    }>;
+  },
+  userRole: TenantMemberRole
+) {
+  const serialized = serializeTenant(tenant) as unknown as {
+    [key: string]: unknown;
+    members?: typeof tenant.members;
+    teamMembers?: Array<{
+      id: string;
+      userId: string;
+      email: string;
+      role: TenantMemberRole;
+      createdAt: Date;
+    }>;
+    userRole: TenantMemberRole;
+  };
+
+  serialized.userRole = userRole;
+  serialized.teamMembers = (tenant.members ?? []).map((member) => ({
+    id: member.id,
+    userId: member.user.id,
+    email: member.user.email,
+    role: member.role,
+    createdAt: member.createdAt
+  }));
+  delete serialized.members;
+
+  return serialized;
+}
+
 async function findTenantDetails(app: FastifyInstance, tenantId: string) {
   return app.prisma.tenant.findUnique({
     where: {
@@ -121,6 +166,19 @@ async function findTenantDetails(app: FastifyInstance, tenantId: string) {
       _count: {
         select: {
           pieces: true
+        }
+      },
+      members: {
+        orderBy: {
+          createdAt: "asc"
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true
+            }
+          }
         }
       }
     }
@@ -200,6 +258,14 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
         }
       });
 
+      await tx.tenantMember.create({
+        data: {
+          tenantId: createdTenant.id,
+          userId: request.user!.id,
+          role: TenantMemberRole.OWNER
+        }
+      });
+
       return createdTenant;
     });
 
@@ -256,14 +322,14 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid tenant id" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
 
-    const payload = await findTenantDetails(app, tenant.id);
+    const payload = await findTenantDetails(app, access.tenant.id);
 
-    return reply.send({ tenant: payload ? serializeTenant(payload) : null });
+    return reply.send({ tenant: payload ? serializeTenantForUser(payload, access.role) : null });
   });
 
   app.patch("/tenants/:tenantId", async (request, reply) => {
@@ -272,10 +338,11 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid tenant id" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const parse = tenantUpdateSchema.safeParse(request.body);
     if (!parse.success) {
@@ -322,7 +389,8 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       await deleteUploadThingFileByUrl(previousAboutPhotoUrlToDelete, request.log);
     }
 
-    return reply.send({ tenant: serializeTenant(updated) });
+    const updatedDetails = await findTenantDetails(app, tenant.id);
+    return reply.send({ tenant: updatedDetails ? serializeTenantForUser(updatedDetails, access.role) : serializeTenant(updated) });
   });
 
   app.patch("/tenants/:tenantId/theme", async (request, reply) => {
@@ -331,10 +399,11 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid tenant id" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const parse = themeSelectionSchema.safeParse(request.body);
     if (!parse.success) {
@@ -360,7 +429,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     });
 
     const updated = await findTenantDetails(app, tenant.id);
-    return reply.send({ tenant: updated ? serializeTenant(updated) : null });
+    return reply.send({ tenant: updated ? serializeTenantForUser(updated, access.role) : null });
   });
 
   app.post("/tenants/:tenantId/publish", async (request, reply) => {
@@ -369,10 +438,11 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid tenant id" });
     }
 
-    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
-    if (!tenant) {
+    const access = await requireTenantAccess(request, reply, params.data.tenantId);
+    if (!access) {
       return;
     }
+    const tenant = access.tenant;
 
     const hostname = `${tenant.slug}.${env.PLATFORM_DOMAIN}`;
     const publishedUrl = buildPublishedUrl(hostname);
@@ -409,6 +479,218 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     });
 
     return reply.send({ published: true, publishedUrl });
+  });
+
+  app.post("/tenants/:tenantId/team-invitations", async (request, reply) => {
+    const params = z.object({ tenantId: z.string().min(1) }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: "Invalid tenant id" });
+    }
+
+    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
+    if (!tenant) {
+      return;
+    }
+
+    if (tenant.planId !== PLAN_IDS.studio) {
+      return reply.status(403).send({ error: "Team invitations require the Studio plan" });
+    }
+
+    const parse = teamInviteSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    const email = parse.data.email.trim().toLowerCase();
+    if (email === request.user!.email.toLowerCase()) {
+      return reply.status(400).send({ error: "You are already the owner of this Studio" });
+    }
+
+    const existingMember = await app.prisma.tenantMember.findFirst({
+      where: {
+        tenantId: tenant.id,
+        user: {
+          email
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            passwordChangeRequired: true
+          }
+        }
+      }
+    });
+    if (existingMember) {
+      if (existingMember.user.passwordChangeRequired) {
+        const temporaryPassword = newTemporaryPassword();
+        const invitation = await app.prisma.$transaction(async (tx) => {
+          await tx.user.update({
+            where: {
+              id: existingMember.user.id
+            },
+            data: {
+              passwordHash: await hashPassword(temporaryPassword),
+              passwordChangeRequired: true
+            }
+          });
+
+          return tx.tenantInvitation.create({
+            data: {
+              tenantId: tenant.id,
+              email,
+              invitedByUserId: request.user!.id,
+              invitedUserId: existingMember.user.id,
+              temporaryAccount: true,
+              expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            }
+          });
+        });
+
+        const emailResult = await sendTeamInviteEmail(
+          {
+            to: email,
+            tenantName: tenant.name,
+            inviterEmail: request.user!.email,
+            temporaryPassword
+          },
+          request.log
+        );
+
+        if (emailResult.sent) {
+          await app.prisma.tenantInvitation.update({
+            where: {
+              id: invitation.id
+            },
+            data: {
+              emailSentAt: new Date()
+            }
+          });
+        }
+
+        const updatedTenant = await findTenantDetails(app, tenant.id);
+
+        return reply.status(201).send({
+          invitation: {
+            id: invitation.id,
+            email,
+            temporaryAccount: true,
+            emailSent: emailResult.sent
+          },
+          member: {
+            id: existingMember.id,
+            userId: existingMember.user.id,
+            email: existingMember.user.email,
+            role: existingMember.role,
+            createdAt: existingMember.createdAt
+          },
+          tenant: updatedTenant ? serializeTenantForUser(updatedTenant, TenantMemberRole.OWNER) : null,
+          ...(env.NODE_ENV !== "production" ? { temporaryPassword } : {})
+        });
+      }
+
+      return reply.status(409).send({ error: "This email is already on the Studio team" });
+    }
+
+    const existingUser = await app.prisma.user.findUnique({
+      where: {
+        email
+      }
+    });
+
+    const shouldIssueTemporaryPassword = !existingUser || existingUser.passwordChangeRequired;
+    const temporaryPassword = shouldIssueTemporaryPassword ? newTemporaryPassword() : undefined;
+    const invitedUser = existingUser
+      ? shouldIssueTemporaryPassword
+        ? await app.prisma.user.update({
+            where: {
+              id: existingUser.id
+            },
+            data: {
+              passwordHash: await hashPassword(temporaryPassword!),
+              passwordChangeRequired: true
+            }
+          })
+        : existingUser
+      : await app.prisma.user.create({
+          data: {
+            email,
+            passwordHash: await hashPassword(temporaryPassword!),
+            passwordChangeRequired: true
+          }
+        });
+
+    const [member, invitation] = await app.prisma.$transaction([
+      app.prisma.tenantMember.upsert({
+        where: {
+          tenantId_userId: {
+            tenantId: tenant.id,
+            userId: invitedUser.id
+          }
+        },
+        update: {
+          role: TenantMemberRole.MEMBER
+        },
+        create: {
+          tenantId: tenant.id,
+          userId: invitedUser.id,
+          role: TenantMemberRole.MEMBER
+        }
+      }),
+      app.prisma.tenantInvitation.create({
+        data: {
+          tenantId: tenant.id,
+          email,
+          invitedByUserId: request.user!.id,
+          invitedUserId: invitedUser.id,
+          temporaryAccount: Boolean(temporaryPassword),
+          expiresAt: temporaryPassword ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null
+        }
+      })
+    ]);
+
+    const emailResult = await sendTeamInviteEmail(
+      {
+        to: email,
+        tenantName: tenant.name,
+        inviterEmail: request.user!.email,
+        temporaryPassword
+      },
+      request.log
+    );
+
+    if (emailResult.sent) {
+      await app.prisma.tenantInvitation.update({
+        where: {
+          id: invitation.id
+        },
+        data: {
+          emailSentAt: new Date()
+        }
+      });
+    }
+
+    const updatedTenant = await findTenantDetails(app, tenant.id);
+
+    return reply.status(201).send({
+      invitation: {
+        id: invitation.id,
+        email,
+        temporaryAccount: Boolean(temporaryPassword),
+        emailSent: emailResult.sent
+      },
+      member: {
+        id: member.id,
+        userId: invitedUser.id,
+        email: invitedUser.email,
+        role: member.role,
+        createdAt: member.createdAt
+      },
+      tenant: updatedTenant ? serializeTenantForUser(updatedTenant, TenantMemberRole.OWNER) : null,
+      ...(env.NODE_ENV !== "production" && temporaryPassword ? { temporaryPassword } : {})
+    });
   });
 
   app.post("/tenants/:tenantId/unpublish", async (request, reply) => {

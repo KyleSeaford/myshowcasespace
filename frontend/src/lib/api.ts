@@ -1,6 +1,7 @@
 export type AuthUser = {
   id: string;
   email: string;
+  passwordChangeRequired: boolean;
   createdAt: string;
 };
 
@@ -13,6 +14,7 @@ export type TenantSummary = {
   themeLocked: boolean;
   published: boolean;
   publishedUrl: string | null;
+  userRole?: "OWNER" | "MEMBER";
 };
 
 export type TenantThemeId = "default" | "sunny" | "dark";
@@ -38,6 +40,15 @@ export type TenantDetails = TenantSummary & {
   };
   socialLinks: Record<string, string>;
   theme: Record<string, string>;
+  teamMembers?: TenantTeamMember[];
+};
+
+export type TenantTeamMember = {
+  id: string;
+  userId: string;
+  email: string;
+  role: "OWNER" | "MEMBER";
+  createdAt: string;
 };
 
 export type UploadedImage = {
@@ -136,6 +147,17 @@ export async function logout(): Promise<void> {
   });
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<AuthUser> {
+  const payload = await request<{ user: AuthUser }>("/auth/change-password", {
+    method: "POST",
+    body: {
+      currentPassword,
+      newPassword
+    }
+  });
+  return payload.user;
+}
+
 export async function getMe(): Promise<{ user: AuthUser; tenants: TenantSummary[] }> {
   return request<{ user: AuthUser; tenants: TenantSummary[] }>("/auth/me");
 }
@@ -198,6 +220,38 @@ export async function updateTenantTheme(tenantId: string, themeId: TenantThemeId
   }
 
   return response.tenant;
+}
+
+export async function inviteTenantMember(
+  tenantId: string,
+  email: string
+): Promise<{
+  invitation: {
+    id: string;
+    email: string;
+    temporaryAccount: boolean;
+    emailSent: boolean;
+  };
+  member: TenantTeamMember;
+  tenant: TenantDetails | null;
+  temporaryPassword?: string;
+}> {
+  return request<{
+    invitation: {
+      id: string;
+      email: string;
+      temporaryAccount: boolean;
+      emailSent: boolean;
+    };
+    member: TenantTeamMember;
+    tenant: TenantDetails | null;
+    temporaryPassword?: string;
+  }>(`/tenants/${tenantId}/team-invitations`, {
+    method: "POST",
+    body: {
+      email
+    }
+  });
 }
 
 type UploadImageOptions = {

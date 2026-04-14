@@ -90,12 +90,15 @@ const Dashboard = () => {
   };
 
   return (
-    <main className="h-[100vh] bg-background px-6 py-6 md:px-10">
-      <div className="mx-auto grid h-full w-full max-w-7xl grid-rows-[auto_1fr] gap-6 md:gap-8">
+    <main className="min-h-screen bg-background px-6 py-6 md:px-10">
+      <div className="mx-auto w-full max-w-7xl space-y-6 md:space-y-8">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Dashboard</p>
             <h1 className="font-heading text-4xl md:text-5xl font-light text-foreground mt-2">{siteName}</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Review the live site, jump into /admin, and manage the next useful action for this tenant.
+            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:items-end">
@@ -122,11 +125,37 @@ const Dashboard = () => {
           </div>
         </header>
 
-        <div className="min-h-0 overflow-y-auto pr-1">
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="self-start lg:sticky lg:top-6">
+            <div className="space-y-6 border border-border bg-background p-5">
+              <div>
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Workspace</p>
+                <nav className="mt-4 grid gap-2 text-sm text-muted-foreground">
+                  <a href="#live-preview" className="transition-colors hover:text-foreground">Live preview</a>
+                  <a href="#plan" className="transition-colors hover:text-foreground">Plan</a>
+                  <a href="#admin-access" className="transition-colors hover:text-foreground">Admin access</a>
+                  <a href="#next-actions" className="transition-colors hover:text-foreground">Next actions</a>
+                </nav>
+              </div>
+
+              <div className="border-t border-border pt-5">
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Site status</p>
+                <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+                  <p><span className="text-foreground">Plan:</span> {planName}</p>
+                  {typeof pieceCount === "number" && typeof pieceLimit === "number" ? (
+                    <p><span className="text-foreground">Pieces:</span> {pieceCount}/{pieceLimit}</p>
+                  ) : null}
+                  <p className="break-all"><span className="text-foreground">URL:</span> {siteUrl || "Not found"}</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-w-0">
           {tenantError ? <p className="mb-4 text-sm text-destructive">{tenantError}</p> : null}
 
           <section className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-            <Card className="overflow-hidden border-border/80 bg-card/80 backdrop-blur-sm">
+            <Card id="live-preview" className="scroll-mt-8 overflow-hidden border-border/80 bg-card/80 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="font-heading text-3xl font-light">Live preview</CardTitle>
                 <CardDescription>
@@ -156,7 +185,7 @@ const Dashboard = () => {
             </Card>
 
             <div className="grid gap-5 content-start">
-              <Card className="border-border/80 bg-card/80 backdrop-blur-sm">
+              <Card id="plan" className="scroll-mt-8 border-border/80 bg-card/80 backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex items-center gap-2 text-foreground">
                     <Rocket className="h-4 w-4" />
@@ -183,7 +212,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/80 bg-card/80 backdrop-blur-sm">
+              <Card id="admin-access" className="scroll-mt-8 border-border/80 bg-card/80 backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex items-center gap-2 text-foreground">
                     <LockKeyhole className="h-4 w-4" />
@@ -205,7 +234,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="border-border/80 bg-card/80 backdrop-blur-sm">
+              <Card id="next-actions" className="scroll-mt-8 border-border/80 bg-card/80 backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex items-center gap-2 text-foreground">
                     <Sparkles className="h-4 w-4" />
@@ -220,6 +249,7 @@ const Dashboard = () => {
               </Card>
             </div>
           </section>
+          </div>
         </div>
       </div>
     </main>

@@ -4,7 +4,7 @@ import path from "node:path";
 import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { UTFile } from "uploadthing/server";
-import { requireAuth, requireOwnedTenant } from "../lib/guards.js";
+import { requireAuth, requireTenantAccess } from "../lib/guards.js";
 import { uploadThingApi } from "../lib/uploadthing.js";
 
 const uploadsDir = path.resolve(process.cwd(), "uploads");
@@ -80,10 +80,11 @@ export const uploadRoutes: FastifyPluginAsync = async (app) => {
     let tenantSlugForName = requestedTenantSlug;
     let tenantIdForCustomId = "";
     if (tenantId) {
-      const tenant = await requireOwnedTenant(request, reply, tenantId);
-      if (!tenant) {
+      const access = await requireTenantAccess(request, reply, tenantId);
+      if (!access) {
         return;
       }
+      const tenant = access.tenant;
       tenantSlugForName = sanitizeForFileName(tenant.slug);
       tenantIdForCustomId = tenant.id;
     }

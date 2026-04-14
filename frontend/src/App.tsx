@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import HelpCenter from "./pages/HelpCenter.tsx";
 import Index from "./pages/Index.tsx";
 import LaunchReady from "./pages/LaunchReady.tsx";
+import ChangePassword from "./pages/ChangePassword.tsx";
 import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
@@ -74,6 +75,7 @@ const App = () => (
           <Route path="/legal/cookie-notice" element={<CookieNotice />} />
           <Route path="/legal/terms-of-service" element={<TermsOfService />} />
           <Route path="/start" element={<Start />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/settings" element={<Settings />} />

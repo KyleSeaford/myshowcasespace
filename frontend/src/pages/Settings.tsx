@@ -8,6 +8,7 @@ import {
   ApiError,
   getMe,
   getTenant,
+  inviteTenantMember,
   logout,
   type TenantDetails,
   type TenantThemeId,
@@ -107,6 +108,10 @@ const Settings = () => {
   const [themeError, setThemeError] = useState("");
   const [themeSuccess, setThemeSuccess] = useState("");
   const [isSavingTheme, setIsSavingTheme] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviteSuccess, setInviteSuccess] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -192,6 +197,7 @@ const Settings = () => {
 
   const settingsPath = tenantId ? `/settings?tenantId=${encodeURIComponent(tenantId)}` : "/settings";
   const canChooseTheme = tenant ? paidPlanIds.has(tenant.planId) : false;
+  const canManageStudioTeam = tenant?.planId === "studio" && tenant.userRole === "OWNER";
   const currentThemeLabel =
     themeOptions.find((option) => option.id === ((tenant?.themeId as TenantThemeId | undefined) ?? "default"))?.label ??
     "Default";
@@ -320,6 +326,40 @@ const Settings = () => {
     }
   };
 
+  const handleInviteMember = async () => {
+    setInviteError("");
+    setInviteSuccess("");
+
+    if (!tenant?.id) {
+      setInviteError("Missing tenant context.");
+      return;
+    }
+
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      setInviteError("Please enter a valid email address.");
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      const result = await inviteTenantMember(tenant.id, normalizedEmail);
+      if (result.tenant) {
+        setTenant(result.tenant);
+      }
+      setInviteEmail("");
+      setInviteSuccess(
+        result.invitation.emailSent
+          ? `Invite sent to ${normalizedEmail}.`
+          : `Invite created for ${normalizedEmail}. Configure email sending to deliver invites automatically.`
+      );
+    } catch (error) {
+      setInviteError(error instanceof ApiError ? error.message : "Unable to invite this team member.");
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   const handleAboutPhotoUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
@@ -354,14 +394,17 @@ const Settings = () => {
   };
 
   return (
-    <main className="h-[100vh] bg-background px-6 py-8 md:px-10">
-      <div className="mx-auto grid h-full w-full max-w-7xl grid-rows-[auto_1fr] gap-8 md:gap-10">
+    <main className="min-h-screen bg-background px-6 py-8 md:px-10">
+      <div className="mx-auto w-full max-w-7xl space-y-8 md:space-y-10">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Settings</p>
             <h1 className="font-heading mt-2 text-4xl font-light text-foreground md:text-5xl">
               Edit site details
             </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+              Manage the public portfolio, theme, Studio collaborators, contact details, and admin access.
+            </p>
           </div>
           <div className="flex flex-col gap-3 sm:items-end">
             <div className="flex flex-wrap items-center gap-2">
@@ -387,17 +430,44 @@ const Settings = () => {
           </div>
         </header>
 
-        <div className="min-h-0 overflow-y-auto pr-1">
+        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="self-start lg:sticky lg:top-6">
+            <div className="space-y-6 border border-border bg-background p-5">
+              <div>
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">On this page</p>
+                <nav className="mt-4 grid gap-2 text-sm text-muted-foreground">
+                  <a href="#site-basics" className="transition-colors hover:text-foreground">Site basics</a>
+                  <a href="#theme" className="transition-colors hover:text-foreground">Theme</a>
+                  <a href="#studio-team" className="transition-colors hover:text-foreground">Studio team</a>
+                  <a href="#profile-details" className="transition-colors hover:text-foreground">Profile</a>
+                  <a href="#contact-links" className="transition-colors hover:text-foreground">Contact</a>
+                  <a href="#security" className="transition-colors hover:text-foreground">Security</a>
+                </nav>
+              </div>
+
+              <div className="border-t border-border pt-5">
+                <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">Current site</p>
+                <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
+                  <p><span className="text-foreground">Plan:</span> {tenant?.plan?.name ?? tenant?.planId ?? "Loading"}</p>
+                  <p><span className="text-foreground">Theme:</span> {currentThemeLabel}</p>
+                  <p><span className="text-foreground">Role:</span> {tenant?.userRole === "MEMBER" ? "Member" : "Owner"}</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <div className="min-w-0">
           <Card className="border-border/80 bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="font-heading text-3xl font-light">Profile and publishing info</CardTitle>
-              <CardDescription>Update what you entered in onboarding. Save applies changes to your tenant record.</CardDescription>
+              <CardTitle className="font-heading text-3xl font-light">Settings workspace</CardTitle>
+              <CardDescription>Each section below controls a different part of the tenant.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <p className="text-sm text-muted-foreground">Loading settings...</p>
               ) : (
                 <form className="space-y-5" onSubmit={handleSave}>
+                <section id="site-basics" className="scroll-mt-8 space-y-3 border-b border-border pb-5">
                 <div className="grid gap-5 md:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="site-name" className="text-sm text-foreground">Site name</label>
@@ -415,8 +485,9 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground">
                   Site name and slug are locked after setup. Contact support if either needs to change.
                 </p>
+                </section>
 
-                <section className="space-y-4 border-y border-border py-5">
+                <section id="theme" className="scroll-mt-8 space-y-4 border-b border-border pb-5">
                   <div className="space-y-1">
                     <h2 className="font-heading text-2xl font-light text-foreground">Theme</h2>
                     {tenant?.themeLocked ? (
@@ -477,6 +548,81 @@ const Settings = () => {
                   ) : null}
                 </section>
 
+                <section id="studio-team" className="scroll-mt-8 space-y-4 border-b border-border pb-5">
+                  <div className="space-y-1">
+                    <h2 className="font-heading text-2xl font-light text-foreground">Studio team</h2>
+                    {tenant?.planId === "studio" ? (
+                      canManageStudioTeam ? (
+                        <p className="text-sm text-muted-foreground">
+                          Invite collaborators to edit this tenant with their own Rivo account.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          Team members can edit this tenant. Only the Studio owner can invite new people.
+                        </p>
+                      )
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Upgrade to Studio to invite multiple people into one tenant.
+                      </p>
+                    )}
+                  </div>
+
+                  {tenant?.planId === "studio" ? (
+                    <div className="grid gap-3">
+                      {(tenant.teamMembers ?? []).length > 0 ? (
+                        <div className="grid gap-2">
+                          {(tenant.teamMembers ?? []).map((member) => (
+                            <div
+                              key={member.id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-secondary/20 px-3 py-2 text-sm"
+                            >
+                              <span className="text-foreground">{member.email}</span>
+                              <span className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                                {member.role === "OWNER" ? "Owner" : "Member"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      {canManageStudioTeam ? (
+                        <div className="grid gap-3 rounded-md border border-border bg-secondary/20 p-4 md:grid-cols-[1fr_auto] md:items-end">
+                          <div className="space-y-2">
+                            <label htmlFor="studio-invite-email" className="text-sm text-foreground">
+                              Invite email
+                            </label>
+                            <Input
+                              id="studio-invite-email"
+                              type="email"
+                              value={inviteEmail}
+                              onChange={(event) => setInviteEmail(event.target.value)}
+                              placeholder="collaborator@example.com"
+                            />
+                          </div>
+                          <Button type="button" onClick={handleInviteMember} disabled={isInviting}>
+                            {isInviting ? "Inviting..." : "Invite"}
+                          </Button>
+                        </div>
+                      ) : null}
+
+                      {inviteError ? <p className="text-sm text-destructive">{inviteError}</p> : null}
+                      {inviteSuccess ? <p className="text-sm text-emerald-600">{inviteSuccess}</p> : null}
+                    </div>
+                  ) : (
+                    <Button variant="outline" type="button" asChild>
+                      <Link to="/#pricing">Go to pricing</Link>
+                    </Button>
+                  )}
+                </section>
+
+                <div id="profile-details" className="scroll-mt-8 border-b border-border pb-2">
+                  <h2 className="font-heading text-2xl font-light text-foreground">Profile</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Public story, hero text, discipline, and About photo.
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <label htmlFor="hero-title" className="text-sm text-foreground">Hero title</label>
                   <Input
@@ -487,6 +633,13 @@ const Settings = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     Main headline shown at the top of your site.
+                  </p>
+                </div>
+
+                <div id="contact-links" className="scroll-mt-8 border-b border-border pb-2">
+                  <h2 className="font-heading text-2xl font-light text-foreground">Contact</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Email, location, ways to work together, and social links.
                   </p>
                 </div>
 
@@ -547,6 +700,13 @@ const Settings = () => {
                       </Button>
                     </div>
                   ) : null}
+                </div>
+
+                <div id="security" className="scroll-mt-8 border-b border-border pb-2">
+                  <h2 className="font-heading text-2xl font-light text-foreground">Security</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Change the site-level admin password used for /admin.
+                  </p>
                 </div>
 
                 <div className="grid gap-5 md:grid-cols-2">
@@ -652,7 +812,10 @@ const Settings = () => {
                 {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
                 {successMessage ? <p className="text-sm text-emerald-600">{successMessage}</p> : null}
 
-                  <div className="flex items-center justify-end">
+                  <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 border border-border bg-background/95 p-4 shadow-sm backdrop-blur">
+                    <p className="text-sm text-muted-foreground">
+                      Save applies profile, contact, social, photo, and admin password changes.
+                    </p>
                     <Button type="submit" disabled={isSaving || isUploadingPhoto}>
                       {isSaving ? "Saving..." : isUploadingPhoto ? "Uploading photo..." : "Save changes"}
                     </Button>
@@ -661,6 +824,7 @@ const Settings = () => {
               )}
             </CardContent>
           </Card>
+          </div>
         </div>
       </div>
     </main>

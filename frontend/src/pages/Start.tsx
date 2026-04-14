@@ -118,7 +118,11 @@ const Start = () => {
         await signup(email.trim().toLowerCase(), password, true, captchaToken || undefined);
         navigate("/onboarding");
       } else {
-        await login(email.trim().toLowerCase(), password, true, captchaToken || undefined);
+        const user = await login(email.trim().toLowerCase(), password, true, captchaToken || undefined);
+        if (user.passwordChangeRequired) {
+          navigate("/change-password");
+          return;
+        }
         const profile = await getMe();
         if (profile.tenants.length > 0) {
           navigateToDashboard(profile.tenants[0]);

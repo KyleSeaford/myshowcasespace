@@ -25,16 +25,25 @@ enum CheckoutStatus {
   EXPIRED
 }
 
+enum TenantMemberRole {
+  OWNER
+  MEMBER
+}
+
 model User {
-  id                   String    @id @default(cuid())
-  email                String    @unique
-  passwordHash         String
-  legalAcceptedAt      DateTime?
-  legalAcceptedVersion String?
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
-  sessions             Session[]
-  tenants              Tenant[]
+  id                     String             @id @default(cuid())
+  email                  String             @unique
+  passwordHash           String
+  passwordChangeRequired Boolean            @default(false)
+  legalAcceptedAt        DateTime?
+  legalAcceptedVersion   String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  sessions               Session[]
+  tenants                Tenant[]
+  memberships            TenantMember[]
+  sentTenantInvitations  TenantInvitation[] @relation("TenantInvitationInviter")
+  receivedInvitations    TenantInvitation[] @relation("TenantInvitationInvitee")
 }
 
 model Session {
@@ -87,9 +96,47 @@ model Tenant {
   apiKeys          ApiKey[]
   billingAccount   BillingAccount?
   checkoutSessions BillingCheckoutSession[]
+  members          TenantMember[]
+  invitations      TenantInvitation[]
 
   @@index([ownerUserId])
   @@index([planId])
+}
+
+model TenantMember {
+  id        String           @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      TenantMemberRole @default(MEMBER)
+  createdAt DateTime         @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@index([role])
+}
+
+model TenantInvitation {
+  id              String    @id @default(cuid())
+  tenantId        String
+  email           String
+  invitedByUserId String
+  invitedUserId   String?
+  temporaryAccount Boolean  @default(false)
+  emailSentAt     DateTime?
+  acceptedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedByUser User   @relation("TenantInvitationInviter", fields: [invitedByUserId], references: [id], onDelete: Cascade)
+  invitedUser   User?  @relation("TenantInvitationInvitee", fields: [invitedUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([invitedUserId])
 }
 
 model Piece {
