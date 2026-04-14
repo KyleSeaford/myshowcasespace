@@ -10,7 +10,6 @@ import {
   verifyPassword
 } from "../lib/auth.js";
 import { requireAuth } from "../lib/guards.js";
-import { getPublicHCaptchaConfig, verifyHCaptchaToken } from "../lib/hcaptcha.js";
 import { CURRENT_LEGAL_VERSION, LEGAL_ACCEPTANCE_ERROR } from "../lib/legal.js";
 
 const credentialsSchema = z.object({
@@ -19,8 +18,7 @@ const credentialsSchema = z.object({
 });
 
 const authRequestSchema = credentialsSchema.extend({
-  acceptedLegal: z.boolean(),
-  captchaToken: z.string().min(1).optional()
+  acceptedLegal: z.boolean()
 });
 
 const changePasswordSchema = z.object({
@@ -39,27 +37,15 @@ async function recordLegalAcceptance(app: FastifyInstance, userId: string): Prom
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/auth/config", async (request, reply) => {
-    const hcaptcha = getPublicHCaptchaConfig(request.headers.host);
-
-    return reply.send({ hcaptcha });
-  });
-
   app.post("/auth/signup", async (request, reply) => {
     const parse = authRequestSchema.safeParse(request.body);
     if (!parse.success) {
       return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
     }
 
-    const { email, password, acceptedLegal, captchaToken } = parse.data;
+    const { email, password, acceptedLegal } = parse.data;
     if (!acceptedLegal) {
       return reply.status(400).send({ error: LEGAL_ACCEPTANCE_ERROR });
-    }
-
-    const captcha = await verifyHCaptchaToken(captchaToken, request.ip, request.headers.host);
-    if (!captcha.ok) {
-      request.log.warn({ errorCodes: captcha.errorCodes }, "hCaptcha verification failed during signup.");
-      return reply.status(captcha.statusCode).send({ error: captcha.message });
     }
 
     const existing = await app.prisma.user.findUnique({ where: { email } });
@@ -96,15 +82,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
     }
 
-    const { email, password, acceptedLegal, captchaToken } = parse.data;
+    const { email, password, acceptedLegal } = parse.data;
     if (!acceptedLegal) {
       return reply.status(400).send({ error: LEGAL_ACCEPTANCE_ERROR });
-    }
-
-    const captcha = await verifyHCaptchaToken(captchaToken, request.ip, request.headers.host);
-    if (!captcha.ok) {
-      request.log.warn({ errorCodes: captcha.errorCodes }, "hCaptcha verification failed during login.");
-      return reply.status(captcha.statusCode).send({ error: captcha.message });
     }
 
     const user = await app.prisma.user.findUnique({ where: { email } });

@@ -28,7 +28,7 @@ const quickStartStages = [
     step: "01",
     title: "Create your account",
     description:
-      "Use the Start page to sign up or log back in. You need to accept the legal terms before continuing, and hCaptcha may appear when login protection is enabled."
+      "Use the Start page to sign up or log back in. You need to accept the legal terms before continuing."
   },
   {
     step: "02",
@@ -61,7 +61,7 @@ const walkthroughs = [
       "Choose whether you are creating an account or logging in.",
       "Enter your email and password. New accounts require password confirmation.",
       "Accept the Terms, Privacy Policy, and Cookie Notice.",
-      "Complete the captcha if it is shown, then submit the form.",
+      "Submit the form.",
       "New accounts continue to onboarding. Existing accounts go to onboarding or the dashboard depending on whether a site already exists."
     ]
   },
@@ -170,7 +170,6 @@ const securityNotes = [
   "Account password: used for the main Rivo login.",
   "Admin password: used only for /admin access on your published site.",
   "Legal acceptance: required before account access is granted.",
-  "Captcha checks: may be required on sign-up or login to reduce spam and brute-force attempts.",
   "Locked fields: site name and slug are treated as fixed after setup, so choose them carefully during onboarding."
 ] as const;
 

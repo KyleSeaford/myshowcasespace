@@ -13,27 +13,7 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).default("Rivo <onboarding@resend.dev>"),
   UPLOADTHING_TOKEN: z.string().min(1).optional(),
-  COOKIE_NAME: z.string().default("ms_session"),
-  HCAPTCHA_SITE_KEY: z.string().min(1).optional(),
-  HCAPTCHA_SECRET_KEY: z.string().min(1).optional()
-}).superRefine((value, context) => {
-  if (value.NODE_ENV === "production") {
-    if (value.HCAPTCHA_SITE_KEY && !value.HCAPTCHA_SECRET_KEY) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["HCAPTCHA_SECRET_KEY"],
-        message: "HCAPTCHA_SECRET_KEY is required in production when HCAPTCHA_SITE_KEY is set"
-      });
-    }
-
-    if (value.HCAPTCHA_SECRET_KEY && !value.HCAPTCHA_SITE_KEY) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["HCAPTCHA_SITE_KEY"],
-        message: "HCAPTCHA_SITE_KEY is required in production when HCAPTCHA_SECRET_KEY is set"
-      });
-    }
-  }
+  COOKIE_NAME: z.string().default("ms_session")
 });
 
 const parsed = envSchema.safeParse(process.env);

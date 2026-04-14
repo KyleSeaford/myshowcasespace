@@ -16,10 +16,9 @@ const sections = [
     ]
   },
   {
-    title: "hCaptcha and anti-abuse technologies",
+    title: "Anti-abuse technologies",
     paragraphs: [
-      "We may use hCaptcha or a similar bot-detection and abuse-prevention service on sign-up, login, payment, publishing, contact, password reset, or other abuse-sensitive flows. These tools may use cookies, cross-site cookies, browser storage, device signals, challenge data, interaction data, or related technical signals to distinguish legitimate users from bots or fraudulent traffic.",
-      "hCaptcha's official materials indicate that certain implementations may set or check cookies associated with hcaptcha.com, including cross-site cookies used by the hCaptcha JavaScript running on another website. If strict browser privacy settings or anti-cookie extensions block those cookies, hCaptcha-protected features may not work correctly."
+      "We may use bot-detection, rate-limiting, fraud-prevention, or abuse-monitoring services on payment, publishing, contact, password reset, or other abuse-sensitive flows. These tools may use cookies, browser storage, device signals, request metadata, interaction data, or related technical signals to distinguish legitimate users from bots or fraudulent traffic."
     ]
   },
   {
@@ -33,7 +32,7 @@ const sections = [
     title: "Third-party services that may use cookies or similar technologies",
     paragraphs: [
       "Depending on which features are enabled, cookies or similar technologies may also be used by third-party providers involved in hosting, uploads, billing, fraud prevention, domain configuration, content delivery, embedded media, support tooling, or analytics.",
-      "Based on the current service setup or planned integrations, these third parties may include Vercel, hCaptcha, UploadThing, a database or infrastructure provider such as Neon, payment providers such as Stripe when billing is enabled, and other comparable hosting, monitoring, or security vendors. Not every provider listed here will necessarily set cookies in every context, and some may instead rely on scripts, request metadata, or other browser-side signals."
+      "Based on the current service setup or planned integrations, these third parties may include Vercel, UploadThing, a database or infrastructure provider such as Neon, payment providers such as Stripe when billing is enabled, and other comparable hosting, monitoring, or security vendors. Not every provider listed here will necessarily set cookies in every context, and some may instead rely on scripts, request metadata, or other browser-side signals."
     ]
   },
   {
@@ -44,7 +43,7 @@ const sections = [
     bullets: [
       "Strictly necessary cookies for authentication, session integrity, routing, and basic security.",
       "Functional cookies or local storage for remembering interface state and preferences.",
-      "Security and anti-fraud technologies, including challenge-response and abuse detection services such as hCaptcha.",
+      "Security and anti-fraud technologies, including abuse detection and rate-limiting services.",
       "Analytics and performance technologies used to understand traffic, feature usage, and site reliability.",
       "Third-party cookies or identifiers connected with embedded services, payment flows, or external integrations where those features are enabled."
     ]
@@ -53,7 +52,7 @@ const sections = [
     title: "Your choices",
     paragraphs: [
       "You can manage or block many cookies through your browser settings, content-blocking extensions, device controls, or privacy tools. You may also be able to clear local storage and similar browser-side data directly from your browser.",
-      "If you block essential cookies, hCaptcha cookies, or similar anti-abuse technologies, protected forms and account access features may fail. If we introduce a cookie banner or consent manager in the future, your choices there will apply in addition to your browser settings.",
+      "If you block essential cookies or similar anti-abuse technologies, protected forms and account access features may fail. If we introduce a cookie banner or consent manager in the future, your choices there will apply in addition to your browser settings.",
       "Questions about our use of cookies or similar technologies can be sent to hello@getrivo.net."
     ]
   },

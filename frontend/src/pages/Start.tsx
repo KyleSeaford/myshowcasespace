@@ -1,13 +1,12 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, LockKeyhole, ScrollText, Sparkles } from "lucide-react";
-import HCaptchaWidget from "@/components/HCaptchaWidget";
 import { PasswordInput } from "@/components/PasswordInput";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ApiError, getAuthConfig, getMe, login, signup } from "@/lib/api";
+import { ApiError, getMe, login, signup } from "@/lib/api";
 
 type AuthMode = "signup" | "login";
 
@@ -18,43 +17,8 @@ const Start = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [hasAcceptedLegal, setHasAcceptedLegal] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState("");
-  const [captchaResetSignal, setCaptchaResetSignal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [captchaSiteKey, setCaptchaSiteKey] = useState<string | null>(null);
-  const [isCaptchaEnabled, setIsCaptchaEnabled] = useState(false);
-  const [isCaptchaConfigLoading, setIsCaptchaConfigLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    void getAuthConfig()
-      .then((config) => {
-        if (!active) {
-          return;
-        }
-
-        setIsCaptchaEnabled(config.hcaptcha.enabled);
-        setCaptchaSiteKey(config.hcaptcha.siteKey);
-      })
-      .catch(() => {
-        if (!active) {
-          return;
-        }
-
-        setErrorMessage("Unable to load login protection. Please refresh and try again.");
-      })
-      .finally(() => {
-        if (active) {
-          setIsCaptchaConfigLoading(false);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
 
   const title = useMemo(
     () => (mode === "signup" ? "Create your account" : "Welcome back"),
@@ -106,19 +70,14 @@ const Start = () => {
       return;
     }
 
-    if (isCaptchaEnabled && !captchaToken) {
-      setErrorMessage("Please complete the captcha challenge.");
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
       if (mode === "signup") {
-        await signup(email.trim().toLowerCase(), password, true, captchaToken || undefined);
+        await signup(email.trim().toLowerCase(), password, true);
         navigate("/onboarding");
       } else {
-        const user = await login(email.trim().toLowerCase(), password, true, captchaToken || undefined);
+        const user = await login(email.trim().toLowerCase(), password, true);
         if (user.passwordChangeRequired) {
           navigate("/change-password");
           return;
@@ -137,10 +96,6 @@ const Start = () => {
         setErrorMessage("Unable to continue. Please try again.");
       }
     } finally {
-      if (isCaptchaEnabled) {
-        setCaptchaToken("");
-        setCaptchaResetSignal((value) => value + 1);
-      }
       setIsSubmitting(false);
     }
   };
@@ -186,9 +141,9 @@ const Start = () => {
 
                 <div className="border border-border bg-secondary/20 p-4">
                   <LockKeyhole className="h-4 w-4 text-foreground" />
-                  <p className="mt-3 text-sm text-foreground">Protected entry</p>
+                  <p className="mt-3 text-sm text-foreground">Private dashboard</p>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                    hCaptcha helps block spam and brute-force attempts.
+                    Your account keeps dashboard access separate from the public site.
                   </p>
                 </div>
 
@@ -286,51 +241,9 @@ const Start = () => {
                   </div>
                 </div>
 
-                {isCaptchaEnabled && captchaSiteKey ? (
-                  <div className="rounded-md border border-border bg-secondary/20 p-4">
-                    <div className="grid gap-4 md:grid-cols-[minmax(0,320px)_1fr] md:items-center">
-                      <HCaptchaWidget
-                        siteKey={captchaSiteKey}
-                        resetSignal={captchaResetSignal}
-                        onVerify={(token) => {
-                          setCaptchaToken(token);
-                          setErrorMessage("");
-                        }}
-                        onExpire={() => {
-                          setCaptchaToken("");
-                          setErrorMessage("Captcha expired. Please complete it again.");
-                        }}
-                        onError={(message) => {
-                          setCaptchaToken("");
-                          setErrorMessage(message);
-                        }}
-                      />
-                      <div className="space-y-2">
-                        <p className="text-sm text-foreground">Protected by hCaptcha.</p>
-                        <p className="text-xs leading-relaxed text-muted-foreground">
-                          Helps block spam and brute-force logins.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {isCaptchaConfigLoading ? (
-                  <p className="text-xs text-muted-foreground">Loading login protection...</p>
-                ) : null}
-
                 {errorMessage && <p className="text-sm text-destructive">{errorMessage}</p>}
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={
-                    isSubmitting ||
-                    isCaptchaConfigLoading ||
-                    !hasAcceptedLegal ||
-                    (isCaptchaEnabled && !captchaToken)
-                  }
-                >
+                <Button type="submit" className="w-full" disabled={isSubmitting || !hasAcceptedLegal}>
                   {isSubmitting ? "Please wait..." : submitLabel}
                   <ArrowRight />
                 </Button>
@@ -343,8 +256,6 @@ const Start = () => {
                     onClick={() => {
                       setMode(mode === "signup" ? "login" : "signup");
                       setHasAcceptedLegal(false);
-                      setCaptchaToken("");
-                      setCaptchaResetSignal((value) => value + 1);
                       setErrorMessage("");
                     }}
                   >

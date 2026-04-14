@@ -19,13 +19,6 @@ export type TenantSummary = {
 
 export type TenantThemeId = "default" | "sunny" | "dark";
 
-export type AuthConfig = {
-  hcaptcha: {
-    enabled: boolean;
-    siteKey: string | null;
-  };
-};
-
 export type TenantDetails = TenantSummary & {
   bio: string | null;
   contactEmail: string;
@@ -108,16 +101,14 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
 export async function signup(
   email: string,
   password: string,
-  acceptedLegal: boolean,
-  captchaToken?: string
+  acceptedLegal: boolean
 ): Promise<AuthUser> {
   const payload = await request<{ user: AuthUser }>("/auth/signup", {
     method: "POST",
     body: {
       email,
       password,
-      acceptedLegal,
-      ...(captchaToken ? { captchaToken } : {})
+      acceptedLegal
     }
   });
   return payload.user;
@@ -126,16 +117,14 @@ export async function signup(
 export async function login(
   email: string,
   password: string,
-  acceptedLegal: boolean,
-  captchaToken?: string
+  acceptedLegal: boolean
 ): Promise<AuthUser> {
   const payload = await request<{ user: AuthUser }>("/auth/login", {
     method: "POST",
     body: {
       email,
       password,
-      acceptedLegal,
-      ...(captchaToken ? { captchaToken } : {})
+      acceptedLegal
     }
   });
   return payload.user;
@@ -160,10 +149,6 @@ export async function changePassword(currentPassword: string, newPassword: strin
 
 export async function getMe(): Promise<{ user: AuthUser; tenants: TenantSummary[] }> {
   return request<{ user: AuthUser; tenants: TenantSummary[] }>("/auth/me");
-}
-
-export async function getAuthConfig(): Promise<AuthConfig> {
-  return request<AuthConfig>("/auth/config");
 }
 
 export type TenantCreatePayload = {
