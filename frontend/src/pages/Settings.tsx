@@ -434,6 +434,10 @@ const Settings = () => {
                     )}
                   </div>
 
+                  <Button variant="outline" type="button" asChild>
+                    <Link to="/themes">Preview themes</Link>
+                  </Button>
+
                   {canChooseTheme && !tenant?.themeLocked ? (
                     <>
                       <div className="grid gap-3 md:grid-cols-3">

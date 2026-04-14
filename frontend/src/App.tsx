@@ -19,6 +19,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
 import Settings from "./pages/Settings.tsx";
 import Start from "./pages/Start.tsx";
 import TermsOfService from "./pages/TermsOfService.tsx";
+import Themes from "./pages/Themes.tsx";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const App = () => (
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/themes" element={<Themes />} />
           <Route path="/launch-ready" element={<LaunchReady />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

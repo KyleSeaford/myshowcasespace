@@ -57,6 +57,12 @@ const ShowcaseSection = () => {
                 <p className="text-muted-foreground font-light leading-relaxed">{item.description}</p>
               </div>
             ))}
+            <a
+              href="/themes"
+              className="inline-flex items-center border border-foreground px-5 py-3 text-sm text-foreground transition-colors hover:bg-foreground hover:text-background"
+            >
+              View themes
+            </a>
           </div>
         </div>
       </div>
