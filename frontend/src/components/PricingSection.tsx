@@ -1,7 +1,11 @@
 import { useSessionProfile } from "@/hooks/use-session-profile";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { ApiError, createBillingCheckoutSession } from "@/lib/api";
 
 const plans = [
   {
+    id: "free",
     name: "Starter",
     price: "\u00A30",
     period: "/month",
@@ -15,6 +19,7 @@ const plans = [
     paid: false,
   },
   {
+    id: "personal",
     name: "Personal",
     price: "\u00A35",
     period: "/month",
@@ -28,6 +33,7 @@ const plans = [
     paid: true,
   },
   {
+    id: "studio",
     name: "Studio",
     price: "\u00A312",
     period: "/month",
@@ -42,8 +48,60 @@ const plans = [
   },
 ];
 
+function planTier(planId: string): number {
+  if (planId === "studio") {
+    return 2;
+  }
+
+  if (planId === "personal" || planId === "pro") {
+    return 1;
+  }
+
+  return 0;
+}
+
 const PricingSection = () => {
-  const { isLoggedIn, dashboardPath } = useSessionProfile();
+  const { isLoggedIn, firstTenant, profile } = useSessionProfile();
+  const [searchParams] = useSearchParams();
+  const [busyPlanId, setBusyPlanId] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const requestedTenantId = searchParams.get("tenantId")?.trim() ?? "";
+  const selectedTenant =
+    profile?.tenants.find((tenant) => tenant.id === requestedTenantId) ?? firstTenant ?? null;
+
+  const handlePaidPlan = async (targetPlanId: "personal" | "studio") => {
+    setErrorMessage("");
+
+    if (!isLoggedIn) {
+      window.location.href = "/start";
+      return;
+    }
+
+    if (!selectedTenant) {
+      window.location.href = "/onboarding";
+      return;
+    }
+
+    setBusyPlanId(targetPlanId);
+    try {
+      const successUrl = `${window.location.origin}/settings?tenantId=${encodeURIComponent(
+        selectedTenant.id
+      )}&billing=success`;
+      const cancelUrl = `${window.location.origin}/pricing?tenantId=${encodeURIComponent(selectedTenant.id)}`;
+      const checkoutSession = await createBillingCheckoutSession(
+        selectedTenant.id,
+        targetPlanId,
+        successUrl,
+        cancelUrl
+      );
+      window.location.href = checkoutSession.checkoutUrl;
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : "Unable to start checkout.");
+    } finally {
+      setBusyPlanId("");
+    }
+  };
 
   return (
     <section id="pricing" className="border-t border-border py-28 md:py-40">
@@ -54,11 +112,51 @@ const PricingSection = () => {
         <p className="mb-14 max-w-2xl text-lg font-light leading-relaxed text-muted-foreground md:mb-16">
           Start free and upgrade when you are ready. No hidden fees, cancel anytime.
         </p>
+        {errorMessage ? <p className="mb-6 text-sm text-destructive">{errorMessage}</p> : null}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {plans.map((plan) => {
-            const href = plan.paid ? dashboardPath ?? (isLoggedIn ? "/onboarding" : "/start") : "/start";
-            const label = plan.paid ? (isLoggedIn ? "Upgrade" : "Get started") : "Start free";
+            const dashboardHref = selectedTenant
+              ? `/dashboard?tenantId=${encodeURIComponent(selectedTenant.id)}`
+              : "/onboarding";
+            const freePlanHref = isLoggedIn ? dashboardHref : "/start";
+            const targetTier = planTier(plan.id);
+            const currentTier = selectedTenant ? planTier(selectedTenant.planId) : 0;
+            const canUpgrade = isLoggedIn && selectedTenant ? currentTier < targetTier : false;
+            const shouldGoToDashboard = isLoggedIn && selectedTenant ? currentTier >= targetTier : false;
+            const isBusy = busyPlanId === plan.id;
+            const label = plan.paid
+              ? isBusy
+                ? "Starting checkout..."
+                : canUpgrade
+                  ? "Upgrade"
+                  : shouldGoToDashboard
+                    ? "Dashboard"
+                    : isLoggedIn
+                      ? "Upgrade"
+                      : "Get started"
+              : isLoggedIn
+                ? "Dashboard"
+                : "Start free";
+
+            const paidClassName = `block w-full py-3 text-center text-sm transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+              plan.highlighted
+                ? "bg-foreground text-background hover:opacity-90"
+                : "border border-border text-foreground hover:border-foreground hover:bg-foreground hover:text-background"
+            }`;
+            const freeClassName = `block py-3 text-center text-sm transition-all ${
+              plan.highlighted
+                ? "bg-foreground text-background hover:opacity-90"
+                : "border border-border text-foreground hover:border-foreground hover:bg-foreground hover:text-background"
+            }`;
+
+            const handlePaidClick = () => {
+              if (shouldGoToDashboard) {
+                window.location.href = dashboardHref;
+                return;
+              }
+              void handlePaidPlan(plan.id as "personal" | "studio");
+            };
 
             return (
               <div
@@ -90,16 +188,23 @@ const PricingSection = () => {
                   ))}
                 </ul>
 
-                <a
-                  href={href}
-                  className={`block py-3 text-center text-sm transition-all ${
-                    plan.highlighted
-                      ? "bg-foreground text-background hover:opacity-90"
-                      : "border border-border text-foreground hover:border-foreground hover:bg-foreground hover:text-background"
-                  }`}
-                >
-                  {label}
-                </a>
+                {plan.paid ? (
+                  <button
+                    type="button"
+                    onClick={handlePaidClick}
+                    disabled={isBusy}
+                    className={paidClassName}
+                  >
+                    {label}
+                  </button>
+                ) : (
+                  <a
+                    href={freePlanHref}
+                    className={freeClassName}
+                  >
+                    {label}
+                  </a>
+                )}
               </div>
             );
           })}

@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { TenantMemberRole, type Tenant } from "@prisma/client";
+import { PLAN_IDS } from "./plans.js";
 
 export type TenantAccess = {
   tenant: Tenant;
@@ -75,6 +76,11 @@ export async function requireTenantAccess(
       tenant,
       role: TenantMemberRole.OWNER
     };
+  }
+
+  if (tenant.planId !== PLAN_IDS.studio) {
+    reply.status(404).send({ error: "Tenant not found" });
+    return null;
   }
 
   const member = await request.server.prisma.tenantMember.findUnique({

@@ -10,6 +10,7 @@ import {
   getTenant,
   inviteTenantMember,
   logout,
+  syncTenantBilling,
   type TenantDetails,
   type TenantThemeId,
   updateTenant,
@@ -135,7 +136,12 @@ const Settings = () => {
           setSearchParams({ tenantId: resolvedTenantId }, { replace: true });
         }
 
-        const details = await getTenant(resolvedTenantId);
+        const checkoutSessionId = searchParams.get("checkout_session_id")?.trim() || undefined;
+        const shouldSyncBilling = searchParams.get("billing") === "success";
+        const billingSync = shouldSyncBilling
+          ? await syncTenantBilling(resolvedTenantId, checkoutSessionId)
+          : null;
+        const details = billingSync?.tenant ?? (await getTenant(resolvedTenantId));
         if (!isActive) {
           return;
         }
@@ -164,6 +170,14 @@ const Settings = () => {
           newAdminPassword: "",
           confirmAdminPassword: ""
         });
+
+        if (shouldSyncBilling) {
+          setSuccessMessage(
+            billingSync?.synced
+              ? "Your plan is active."
+              : "Checkout completed. Billing is still syncing; refresh this page in a moment."
+          );
+        }
       } catch (error) {
         if (!isActive) {
           return;
@@ -186,7 +200,7 @@ const Settings = () => {
     return () => {
       isActive = false;
     };
-  }, [tenantId, navigate, setSearchParams]);
+  }, [tenantId, navigate, searchParams, setSearchParams]);
 
   const dashboardPath = useMemo(() => {
     if (!tenant) {
@@ -196,6 +210,7 @@ const Settings = () => {
   }, [tenant, tenantId]);
 
   const settingsPath = tenantId ? `/settings?tenantId=${encodeURIComponent(tenantId)}` : "/settings";
+  const pricingPath = tenantId ? `/pricing?tenantId=${encodeURIComponent(tenantId)}` : "/pricing";
   const canChooseTheme = tenant ? paidPlanIds.has(tenant.planId) : false;
   const canManageStudioTeam = tenant?.planId === "studio" && tenant.userRole === "OWNER";
   const currentThemeLabel =
@@ -409,13 +424,13 @@ const Settings = () => {
           <div className="flex flex-col gap-3 sm:items-end">
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" asChild>
-                <Link to="/">Back to Home</Link>
-              </Button>
-              <Button variant="outline" asChild>
                 <Link to={dashboardPath}>Dashboard</Link>
               </Button>
               <Button asChild>
                 <Link to={settingsPath}>Settings</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/account">Account</Link>
               </Button>
               {canChooseTheme ? (
                 <Button variant="outline" asChild>
@@ -543,7 +558,7 @@ const Settings = () => {
 
                   {!canChooseTheme ? (
                     <Button variant="outline" type="button" asChild>
-                      <Link to="/#pricing">Go to pricing</Link>
+                      <Link to={pricingPath}>Go to pricing</Link>
                     </Button>
                   ) : null}
                 </section>
@@ -611,7 +626,7 @@ const Settings = () => {
                     </div>
                   ) : (
                     <Button variant="outline" type="button" asChild>
-                      <Link to="/#pricing">Go to pricing</Link>
+                      <Link to={pricingPath}>Go to pricing</Link>
                     </Button>
                   )}
                 </section>

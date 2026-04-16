@@ -75,6 +75,7 @@ const Dashboard = () => {
   const settingsHref = tenantId ? `/settings?tenantId=${encodeURIComponent(tenantId)}` : "/settings";
   const paidPlanLabel = planId === "studio" ? "Studio" : "Personal";
   const dashboardHref = tenantId ? `/dashboard?tenantId=${encodeURIComponent(tenantId)}` : "/dashboard";
+  const pricingHref = tenantId ? `/pricing?tenantId=${encodeURIComponent(tenantId)}` : "/pricing";
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -103,14 +104,14 @@ const Dashboard = () => {
 
           <div className="flex flex-col gap-3 sm:items-end">
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" asChild>
-                <Link to="/">Back to Home</Link>
-              </Button>
               <Button asChild>
                 <Link to={dashboardHref}>Dashboard</Link>
               </Button>
               <Button variant="outline" asChild>
                 <Link to={settingsHref}>Settings</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/account">Account</Link>
               </Button>
               {hasPaidSupport ? (
                 <Button variant="outline" asChild>
@@ -204,7 +205,7 @@ const Dashboard = () => {
                   <p>2. Choose the {paidPlanLabel} or Studio plan.</p>
                   <p>3. Complete checkout to upgrade this site.</p>
                   <Button variant="outline" asChild>
-                    <Link to="/#pricing">
+                    <Link to={pricingHref}>
                       Go to pricing
                       <ExternalLink />
                     </Link>

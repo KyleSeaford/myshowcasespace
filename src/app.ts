@@ -5,6 +5,7 @@ import type { PrismaClient } from "@prisma/client";
 import { prisma as defaultPrisma } from "./db/client.js";
 import { authContext } from "./plugins/auth-context.js";
 import { authRoutes } from "./routes/auth.js";
+import { billingRoutes } from "./routes/billing.js";
 import { blogRoutes } from "./routes/blog.js";
 import { healthRoutes } from "./routes/health.js";
 import { pieceRoutes } from "./routes/pieces.js";
@@ -29,6 +30,7 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
   app.register(multipart);
   app.register(authContext);
 
+  app.register(billingRoutes);
   app.register(blogRoutes);
   app.register(healthRoutes);
   app.register(authRoutes);

@@ -1,3 +1,5 @@
+import type { PrismaClient } from "@prisma/client";
+
 export const PLAN_IDS = {
   starterFree: "free",
   personal: "personal",
@@ -10,6 +12,10 @@ export const PAID_PLAN_ALIASES = [PLAN_IDS.personal, PLAN_IDS.legacyPersonal, PL
 
 export function isPaidPlanId(planId: string): planId is (typeof PAID_PLAN_ALIASES)[number] {
   return PAID_PLAN_ALIASES.includes(planId as (typeof PAID_PLAN_ALIASES)[number]);
+}
+
+export function pieceLimitForPlanId(planId: string): number | null {
+  return DEFAULT_PLANS.find((plan) => plan.id === planId)?.pieceLimit ?? null;
 }
 
 export const DEFAULT_PLANS = [
@@ -32,3 +38,19 @@ export const DEFAULT_PLANS = [
     monthlyPrice: 1200
   }
 ] as const;
+
+export async function ensurePlanCatalog(prisma: PrismaClient): Promise<void> {
+  await Promise.all(
+    DEFAULT_PLANS.map((plan) =>
+      prisma.plan.upsert({
+        where: { id: plan.id },
+        update: {
+          name: plan.name,
+          pieceLimit: plan.pieceLimit,
+          monthlyPrice: plan.monthlyPrice
+        },
+        create: plan
+      })
+    )
+  );
+}

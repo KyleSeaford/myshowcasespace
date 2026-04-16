@@ -34,10 +34,12 @@ Self-serve SaaS MVP where artists can sign up, create a tenant, manage pieces, s
 - Publishing:
   - Publish/unpublish tenant site
   - Generate and persist subdomain: `{tenantSlug}.myshowcase.space`
-- Plans + billing-ready flow:
-  - Plan model (`free`, `pro`, `studio`)
-  - Upgrade flow with real checkout-session persistence (Stripe placeholder provider refs)
-  - Complete checkout endpoint updates tenant plan + billing account status
+- Plans + Stripe billing:
+  - Plan model (`free`, `personal`, `studio`)
+  - Stripe Checkout for new paid subscriptions
+  - Stripe subscription updates for Personal/Studio plan changes
+  - Stripe Billing Portal for payment details
+  - Webhook handling for checkout completion, subscription changes, cancellation, and failed payment status
   - Paid-plan custom domain endpoint
 - Tenant-scoped API:
   - API-key + tenant-code authenticated public data endpoint for spawned showcase sites
@@ -108,6 +110,10 @@ Required Vercel environment variables:
 - `PLATFORM_DOMAIN`
 - `PLATFORM_PROTOCOL`
 - `COOKIE_NAME`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PERSONAL_PRICE_ID`
+- `STRIPE_STUDIO_PRICE_ID`
 - `UPLOADTHING_TOKEN`
 - `HCAPTCHA_SITE_KEY`
 - `HCAPTCHA_SECRET_KEY`
@@ -117,6 +123,7 @@ Recommended setup notes:
 - Keep `NODE_ENV=production` in Vercel so auth cookies are marked `secure`.
 - hCaptcha should be disabled on `localhost` during local development. Use a real host alias such as `test.mydomain.com` if you want to exercise hCaptcha locally.
 - The frontend loads the public hCaptcha site key from the backend at runtime, so only the server-side `HCAPTCHA_SITE_KEY` and `HCAPTCHA_SECRET_KEY` need to be configured.
+- Configure the Stripe webhook endpoint as `/api/billing/stripe/webhook`.
 - Run `npm run prisma:deploy` against your Vercel database before or during production rollout.
 - Use a separate preview database if you enable preview deployments.
 - Do not rely on the local `uploads/` directory on Vercel. Runtime storage is ephemeral, so production uploads should go through UploadThing.
@@ -157,6 +164,9 @@ After `npm run seed`:
 - `POST /auth/signup`
 - `POST /auth/login`
 - `POST /auth/logout`
+- `POST /auth/change-password`
+- `PATCH /auth/email`
+- `DELETE /auth/me`
 - `GET /auth/me`
 
 ### Tenants
@@ -169,8 +179,13 @@ After `npm run seed`:
 - `POST /tenants/:tenantId/unpublish`
 - `POST /tenants/:tenantId/api-keys/rotate`
 - `POST /tenants/:tenantId/billing/checkout-sessions`
-- `POST /tenants/:tenantId/billing/checkout-sessions/:sessionId/complete`
+- `POST /tenants/:tenantId/billing/portal-sessions`
+- `POST /tenants/:tenantId/billing/cancel`
 - `PUT /tenants/:tenantId/domains/custom`
+
+### Stripe Webhooks
+
+- `POST /billing/stripe/webhook`
 
 ### Pieces CMS
 
@@ -223,12 +238,13 @@ Tables:
 
 Notes:
 
-- `Plan.pieceLimit = 3` for `free`, `50` for `pro`, and `200` for `studio`
+- `Plan.pieceLimit = 3` for `free`, `50` for `personal`, and `200` for `studio`
 - `Tenant.themeId = default | sunny | dark`; `Tenant.themeLocked` prevents repeat user changes after selection
 - Tenant stores generated `tenantCode` and publication status/url
 - API keys are hashed (`keyHash`) at rest; raw key is shown only on creation/rotation response
 - Piece limit enforced at create-time for every plan with a configured limit
 - Theme selection is enforced server-side. Starter Free stays on `default`; Personal/Studio can choose once.
+- Studio member access is enforced against the current plan, so downgraded tenants stop granting team access.
 
 ## Testing
 
@@ -252,8 +268,7 @@ Notes:
 - Add CSRF protections and stricter cookie settings per deployment topology
 - Add rate limiting, bot protection, and brute-force defenses
 - Add email verification + password reset flows
-- Add RBAC/multi-user tenant membership model
-- Add Stripe real checkout + webhook signature verification
+- Expand RBAC beyond owner/member roles
 - Add domain ownership verification (DNS/HTTP challenge)
 - Add robust audit logs and admin observability
 - Add OpenAPI docs and request-id tracing

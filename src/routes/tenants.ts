@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { CheckoutStatus, DomainType, TenantMemberRole } from "@prisma/client";
+import { BillingStatus, CheckoutStatus, DomainType, TenantMemberRole } from "@prisma/client";
 import { z } from "zod";
 import { requireAuth, requireOwnedTenant, requireTenantAccess } from "../lib/guards.js";
 import { newApiKey, newTenantCode, newTemporaryPassword } from "../lib/crypto.js";
@@ -9,7 +9,14 @@ import { parseJson, toJsonString } from "../lib/json.js";
 import { hashPassword } from "../lib/auth.js";
 import { parseTenantTheme, THEME_IDS } from "../lib/theme.js";
 import { deleteUploadThingFileByUrl } from "../lib/uploadthing.js";
-import { DEFAULT_PLANS, PAID_PLAN_ALIASES, PAID_PLAN_IDS, PLAN_IDS, isPaidPlanId } from "../lib/plans.js";
+import {
+  applyStripeCheckoutSession,
+  applyStripeSubscriptionState,
+  applyTenantPlanChange,
+  stripePriceIdForPlan
+} from "../lib/billing.js";
+import { getStripeClient } from "../lib/stripe.js";
+import { PAID_PLAN_ALIASES, PAID_PLAN_IDS, PLAN_IDS, ensurePlanCatalog, isPaidPlanId } from "../lib/plans.js";
 
 const socialLinksSchema = z.record(z.string().min(1).max(80), z.string().max(1000));
 
@@ -48,6 +55,16 @@ const checkoutSchema = z.object({
   cancelUrl: z.string().url()
 });
 
+const portalSessionSchema = z.object({
+  returnUrl: z.string().url()
+});
+
+const billingSyncSchema = z
+  .object({
+    checkoutSessionId: z.string().min(1).optional()
+  })
+  .optional();
+
 const customDomainSchema = z.object({
   hostname: z.string().min(3).max(253).regex(/^[a-z0-9.-]+$/)
 });
@@ -64,22 +81,6 @@ async function allocateTenantCode(app: FastifyInstance): Promise<string> {
   throw new Error("Unable to allocate tenant code");
 }
 
-async function ensurePlanCatalog(app: FastifyInstance): Promise<void> {
-  await Promise.all(
-    DEFAULT_PLANS.map((plan) =>
-      app.prisma.plan.upsert({
-        where: { id: plan.id },
-        update: {
-          name: plan.name,
-          pieceLimit: plan.pieceLimit,
-          monthlyPrice: plan.monthlyPrice
-        },
-        create: plan
-      })
-    )
-  );
-}
-
 function withPublicPort(url: string): string {
   if (!env.PLATFORM_PUBLIC_PORT) {
     return url;
@@ -90,6 +91,14 @@ function withPublicPort(url: string): string {
 
 function buildPublishedUrl(hostname: string): string {
   return withPublicPort(`${env.PLATFORM_PROTOCOL}://${hostname}`);
+}
+
+function appendCheckoutSessionPlaceholder(url: string): string {
+  if (url.includes("checkout_session_id=")) {
+    return url;
+  }
+
+  return `${url}${url.includes("?") ? "&" : "?"}checkout_session_id={CHECKOUT_SESSION_ID}`;
 }
 
 function serializeTenant<T extends { socialLinks: string | null; theme: string | null }>(
@@ -115,6 +124,10 @@ function serializeTenantForUser<T extends { socialLinks: string | null; theme: s
         email: string;
       };
     }>;
+    billingAccount?: {
+      status: BillingStatus;
+      currentPeriodEnd: Date | null;
+    } | null;
   },
   userRole: TenantMemberRole
 ) {
@@ -129,9 +142,19 @@ function serializeTenantForUser<T extends { socialLinks: string | null; theme: s
       createdAt: Date;
     }>;
     userRole: TenantMemberRole;
+    billingAccount?: {
+      status: BillingStatus;
+      currentPeriodEnd: Date | null;
+    } | null;
   };
 
   serialized.userRole = userRole;
+  serialized.billingAccount = tenant.billingAccount
+    ? {
+        status: tenant.billingAccount.status,
+        currentPeriodEnd: tenant.billingAccount.currentPeriodEnd
+      }
+    : null;
   serialized.teamMembers = (tenant.members ?? []).map((member) => ({
     id: member.id,
     userId: member.user.id,
@@ -151,6 +174,12 @@ async function findTenantDetails(app: FastifyInstance, tenantId: string) {
     },
     include: {
       plan: true,
+      billingAccount: {
+        select: {
+          status: true,
+          currentPeriodEnd: true
+        }
+      },
       domains: true,
       apiKeys: {
         where: {
@@ -203,7 +232,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(409).send({ error: "Tenant slug already exists" });
     }
 
-    await ensurePlanCatalog(app);
+    await ensurePlanCatalog(app.prisma);
 
     const tenantCode = await allocateTenantCode(app);
     const subdomainHostname = `${slug}.${env.PLATFORM_DOMAIN}`;
@@ -771,22 +800,129 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
 
     const { targetPlanId, successUrl, cancelUrl } = parse.data;
 
-    await ensurePlanCatalog(app);
+    await ensurePlanCatalog(app.prisma);
 
     const targetPlan = await app.prisma.plan.findUnique({ where: { id: targetPlanId } });
     if (!targetPlan) {
       return reply.status(404).send({ error: "Target plan not found" });
     }
 
-    const providerRef = `stub_${tenant.id}_${Date.now()}`;
+    if (env.NODE_ENV === "test") {
+      const providerRef = `stub_${tenant.id}_${Date.now()}`;
 
-    const checkoutSession = await app.prisma.billingCheckoutSession.create({
+      const checkoutSession = await app.prisma.billingCheckoutSession.create({
+        data: {
+          tenantId: tenant.id,
+          targetPlanId,
+          provider: "stripe",
+          providerRef,
+          checkoutUrl: `https://checkout.stripe.local/session/${providerRef}?success=${encodeURIComponent(successUrl)}&cancel=${encodeURIComponent(cancelUrl)}`
+        }
+      });
+
+      return reply.status(201).send({ checkoutSession });
+    }
+
+    const stripe = getStripeClient();
+    if (!stripe) {
+      return reply.status(503).send({ error: "Stripe is not configured" });
+    }
+
+    const priceId = stripePriceIdForPlan(targetPlanId);
+    if (!priceId) {
+      return reply.status(400).send({ error: "No Stripe price configured for this plan" });
+    }
+
+    const billingAccount = await app.prisma.billingAccount.findUnique({
+      where: {
+        tenantId: tenant.id
+      }
+    });
+
+    if (billingAccount?.stripeSubscriptionId && billingAccount.status === BillingStatus.ACTIVE) {
+      const subscription = await stripe.subscriptions.retrieve(billingAccount.stripeSubscriptionId);
+      const subscriptionItemId = subscription.items.data[0]?.id;
+      if (!subscriptionItemId) {
+        return reply.status(409).send({ error: "Stripe subscription has no editable subscription item" });
+      }
+
+      const updatedSubscription = await stripe.subscriptions.update(subscription.id, {
+        items: [
+          {
+            id: subscriptionItemId,
+            price: priceId
+          }
+        ],
+        metadata: {
+          tenantId: tenant.id,
+          targetPlanId
+        },
+        proration_behavior: "create_prorations"
+      });
+
+      await applyStripeSubscriptionState(app.prisma, updatedSubscription);
+
+      const checkoutSession = await app.prisma.billingCheckoutSession.create({
+        data: {
+          tenantId: tenant.id,
+          targetPlanId,
+          provider: "stripe",
+          providerRef: updatedSubscription.id,
+          status: CheckoutStatus.COMPLETED,
+          checkoutUrl: successUrl,
+          completedAt: new Date()
+        }
+      });
+
+      return reply.status(201).send({ checkoutSession });
+    }
+
+    const providerRef = `stub_${tenant.id}_${Date.now()}`;
+    const checkoutSessionRecord = await app.prisma.billingCheckoutSession.create({
       data: {
         tenantId: tenant.id,
         targetPlanId,
         provider: "stripe",
         providerRef,
-        checkoutUrl: `https://checkout.stripe.local/session/${providerRef}?success=${encodeURIComponent(successUrl)}&cancel=${encodeURIComponent(cancelUrl)}`
+        checkoutUrl: successUrl
+      }
+    });
+
+    const stripeSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: billingAccount?.stripeCustomerId ?? undefined,
+      customer_email: billingAccount?.stripeCustomerId ? undefined : request.user!.email,
+      client_reference_id: tenant.id,
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1
+        }
+      ],
+      success_url: appendCheckoutSessionPlaceholder(successUrl),
+      cancel_url: cancelUrl,
+      allow_promotion_codes: true,
+      metadata: {
+        tenantId: tenant.id,
+        targetPlanId,
+        checkoutSessionId: checkoutSessionRecord.id
+      },
+      subscription_data: {
+        metadata: {
+          tenantId: tenant.id,
+          targetPlanId,
+          checkoutSessionId: checkoutSessionRecord.id
+        }
+      }
+    });
+
+    const checkoutSession = await app.prisma.billingCheckoutSession.update({
+      where: {
+        id: checkoutSessionRecord.id
+      },
+      data: {
+        providerRef: stripeSession.id,
+        checkoutUrl: stripeSession.url ?? successUrl
       }
     });
 
@@ -794,6 +930,10 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.post("/tenants/:tenantId/billing/checkout-sessions/:sessionId/complete", async (request, reply) => {
+    if (env.NODE_ENV !== "test") {
+      return reply.status(404).send({ error: "Not found" });
+    }
+
     const params = z
       .object({
         tenantId: z.string().min(1),
@@ -839,15 +979,6 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
         }
       });
 
-      await tx.tenant.update({
-        where: {
-          id: tenant.id
-        },
-        data: {
-          planId: session.targetPlanId
-        }
-      });
-
       await tx.billingAccount.upsert({
         where: {
           tenantId: tenant.id
@@ -868,6 +999,8 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       });
     });
 
+    await applyTenantPlanChange(app.prisma, tenant.id, session.targetPlanId);
+
     const updatedTenant = await app.prisma.tenant.findUnique({
       where: {
         id: tenant.id
@@ -879,6 +1012,156 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     });
 
     return reply.send({ tenant: updatedTenant, completedAt: now });
+  });
+
+  app.post("/tenants/:tenantId/billing/sync", async (request, reply) => {
+    const params = z.object({ tenantId: z.string().min(1) }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: "Invalid tenant id" });
+    }
+
+    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
+    if (!tenant) {
+      return;
+    }
+
+    const parse = billingSyncSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    const stripe = getStripeClient();
+    if (!stripe) {
+      return reply.status(503).send({ error: "Stripe is not configured" });
+    }
+
+    const checkoutSessionId =
+      parse.data?.checkoutSessionId ??
+      (
+        await app.prisma.billingCheckoutSession.findFirst({
+          where: {
+            tenantId: tenant.id,
+            provider: "stripe",
+            status: CheckoutStatus.PENDING,
+            providerRef: {
+              startsWith: "cs_"
+            }
+          },
+          orderBy: {
+            createdAt: "desc"
+          },
+          select: {
+            providerRef: true
+          }
+        })
+      )?.providerRef;
+
+    let synced = false;
+    if (checkoutSessionId) {
+      const stripeSession = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+      const result = await applyStripeCheckoutSession(app.prisma, stripe, stripeSession);
+      synced = result.applied;
+    } else {
+      const billingAccount = await app.prisma.billingAccount.findUnique({
+        where: {
+          tenantId: tenant.id
+        },
+        select: {
+          stripeSubscriptionId: true
+        }
+      });
+
+      if (billingAccount?.stripeSubscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(billingAccount.stripeSubscriptionId);
+        await applyStripeSubscriptionState(app.prisma, subscription);
+        synced = true;
+      }
+    }
+
+    const updatedTenant = await findTenantDetails(app, tenant.id);
+    return reply.send({
+      synced,
+      tenant: updatedTenant ? serializeTenantForUser(updatedTenant, TenantMemberRole.OWNER) : null
+    });
+  });
+
+  app.post("/tenants/:tenantId/billing/portal-sessions", async (request, reply) => {
+    const params = z.object({ tenantId: z.string().min(1) }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: "Invalid tenant id" });
+    }
+
+    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
+    if (!tenant) {
+      return;
+    }
+
+    const parse = portalSessionSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    const billingAccount = await app.prisma.billingAccount.findUnique({
+      where: {
+        tenantId: tenant.id
+      }
+    });
+    if (!billingAccount?.stripeCustomerId) {
+      return reply.status(409).send({ error: "No Stripe customer found for this tenant" });
+    }
+
+    const stripe = getStripeClient();
+    if (!stripe) {
+      return reply.status(503).send({ error: "Stripe is not configured" });
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: billingAccount.stripeCustomerId,
+      return_url: parse.data.returnUrl
+    });
+
+    return reply.status(201).send({ url: session.url });
+  });
+
+  app.post("/tenants/:tenantId/billing/cancel", async (request, reply) => {
+    const params = z.object({ tenantId: z.string().min(1) }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: "Invalid tenant id" });
+    }
+
+    const tenant = await requireOwnedTenant(request, reply, params.data.tenantId);
+    if (!tenant) {
+      return;
+    }
+
+    const billingAccount = await app.prisma.billingAccount.findUnique({
+      where: {
+        tenantId: tenant.id
+      }
+    });
+
+    const stripe = getStripeClient();
+    if (stripe && billingAccount?.stripeSubscriptionId) {
+      await stripe.subscriptions.cancel(billingAccount.stripeSubscriptionId);
+    }
+
+    await app.prisma.billingAccount.upsert({
+      where: {
+        tenantId: tenant.id
+      },
+      create: {
+        tenantId: tenant.id,
+        status: BillingStatus.CANCELED
+      },
+      update: {
+        status: BillingStatus.CANCELED,
+        currentPeriodEnd: null
+      }
+    });
+    await applyTenantPlanChange(app.prisma, tenant.id, PLAN_IDS.starterFree);
+
+    const updatedTenant = await findTenantDetails(app, tenant.id);
+    return reply.send({ tenant: updatedTenant ? serializeTenantForUser(updatedTenant, TenantMemberRole.OWNER) : null });
   });
 
   app.put("/tenants/:tenantId/domains/custom", async (request, reply) => {

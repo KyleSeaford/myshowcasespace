@@ -48,9 +48,10 @@ const Header = () => {
         <div className="md:hidden border-t border-border px-6 py-6 bg-background space-y-4">
           <a href="/#features" className="block text-sm text-muted-foreground">Features</a>
           <a href="/#showcase" className="block text-sm text-muted-foreground">Examples</a>
-          <a href="/#pricing" className="block text-sm text-muted-foreground">Pricing</a>
+          <a href="/pricing" className="block text-sm text-muted-foreground">Pricing</a>
           <a href="/about" className="block text-sm text-muted-foreground">About</a>
           <a href="/blog" className="block text-sm text-muted-foreground">Blog</a>
+          {isLoggedIn ? <a href="/account" className="block text-sm text-muted-foreground">Account</a> : null}
           <a href={primaryHref} className="block text-sm text-foreground border border-foreground px-4 py-2 text-center mt-4">
             {primaryLabel}
           </a>

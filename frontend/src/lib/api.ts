@@ -28,6 +28,10 @@ export type TenantDetails = TenantSummary & {
     pieceLimit: number | null;
     monthlyPrice: number;
   };
+  billingAccount?: {
+    status: "INACTIVE" | "ACTIVE" | "PAST_DUE" | "CANCELED";
+    currentPeriodEnd: string | null;
+  } | null;
   _count?: {
     pieces: number;
   };
@@ -147,6 +151,26 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return payload.user;
 }
 
+export async function changeEmail(email: string, currentPassword: string): Promise<AuthUser> {
+  const payload = await request<{ user: AuthUser }>("/auth/email", {
+    method: "PATCH",
+    body: {
+      email,
+      currentPassword
+    }
+  });
+  return payload.user;
+}
+
+export async function deleteAccount(currentPassword: string): Promise<void> {
+  await request<void>("/auth/me", {
+    method: "DELETE",
+    body: {
+      currentPassword
+    }
+  });
+}
+
 export async function getMe(): Promise<{ user: AuthUser; tenants: TenantSummary[] }> {
   return request<{ user: AuthUser; tenants: TenantSummary[] }>("/auth/me");
 }
@@ -236,6 +260,69 @@ export async function inviteTenantMember(
     body: {
       email
     }
+  });
+}
+
+export type BillingCheckoutSession = {
+  id: string;
+  tenantId: string;
+  targetPlanId: string;
+  provider: string;
+  providerRef: string;
+  status: "PENDING" | "COMPLETED" | "EXPIRED";
+  checkoutUrl: string;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export async function createBillingCheckoutSession(
+  tenantId: string,
+  targetPlanId: "personal" | "studio",
+  successUrl: string,
+  cancelUrl: string
+): Promise<BillingCheckoutSession> {
+  const payload = await request<{ checkoutSession: BillingCheckoutSession }>(
+    `/tenants/${tenantId}/billing/checkout-sessions`,
+    {
+      method: "POST",
+      body: {
+        targetPlanId,
+        successUrl,
+        cancelUrl
+      }
+    }
+  );
+  return payload.checkoutSession;
+}
+
+export async function createBillingPortalSession(tenantId: string, returnUrl: string): Promise<string> {
+  const payload = await request<{ url: string }>(`/tenants/${tenantId}/billing/portal-sessions`, {
+    method: "POST",
+    body: {
+      returnUrl
+    }
+  });
+  return payload.url;
+}
+
+export async function cancelTenantBilling(tenantId: string): Promise<TenantDetails | null> {
+  const payload = await request<{ tenant: TenantDetails | null }>(`/tenants/${tenantId}/billing/cancel`, {
+    method: "POST"
+  });
+  return payload.tenant;
+}
+
+export async function syncTenantBilling(
+  tenantId: string,
+  checkoutSessionId?: string
+): Promise<{ synced: boolean; tenant: TenantDetails | null }> {
+  return request<{ synced: boolean; tenant: TenantDetails | null }>(`/tenants/${tenantId}/billing/sync`, {
+    method: "POST",
+    body: checkoutSessionId
+      ? {
+          checkoutSessionId
+        }
+      : {}
   });
 }
 

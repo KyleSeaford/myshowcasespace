@@ -11,6 +11,7 @@ import {
 } from "../lib/auth.js";
 import { requireAuth } from "../lib/guards.js";
 import { CURRENT_LEGAL_VERSION, LEGAL_ACCEPTANCE_ERROR } from "../lib/legal.js";
+import { getStripeClient } from "../lib/stripe.js";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -24,6 +25,15 @@ const authRequestSchema = credentialsSchema.extend({
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(8).max(128),
   newPassword: z.string().min(8).max(128)
+});
+
+const changeEmailSchema = z.object({
+  email: z.string().email(),
+  currentPassword: z.string().min(8).max(128)
+});
+
+const deleteAccountSchema = z.object({
+  currentPassword: z.string().min(8).max(128)
 });
 
 async function recordLegalAcceptance(app: FastifyInstance, userId: string): Promise<void> {
@@ -161,6 +171,81 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
+  app.patch("/auth/email", async (request, reply) => {
+    if (!(await requireAuth(request, reply))) {
+      return;
+    }
+
+    const parse = changeEmailSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    const nextEmail = parse.data.email.trim().toLowerCase();
+    const user = await app.prisma.user.findUnique({
+      where: {
+        id: request.user!.id
+      }
+    });
+
+    if (!user || !(await verifyPassword(parse.data.currentPassword, user.passwordHash))) {
+      return reply.status(401).send({ error: "Current password is incorrect" });
+    }
+
+    const existing = await app.prisma.user.findUnique({
+      where: {
+        email: nextEmail
+      },
+      select: {
+        id: true
+      }
+    });
+    if (existing && existing.id !== user.id) {
+      return reply.status(409).send({ error: "Email is already in use" });
+    }
+
+    const updated = await app.prisma.user.update({
+      where: {
+        id: user.id
+      },
+      data: {
+        email: nextEmail
+      }
+    });
+
+    const stripe = getStripeClient();
+    if (stripe) {
+      const billingAccounts = await app.prisma.billingAccount.findMany({
+        where: {
+          tenant: {
+            ownerUserId: user.id
+          },
+          stripeCustomerId: {
+            not: null
+          }
+        },
+        select: {
+          stripeCustomerId: true
+        }
+      });
+
+      await Promise.all(
+        billingAccounts.map((account) =>
+          account.stripeCustomerId ? stripe.customers.update(account.stripeCustomerId, { email: nextEmail }) : undefined
+        )
+      );
+    }
+
+    return reply.send({
+      user: {
+        id: updated.id,
+        email: updated.email,
+        passwordChangeRequired: updated.passwordChangeRequired,
+        createdAt: updated.createdAt
+      }
+    });
+  });
+
   app.post("/auth/logout", async (request, reply) => {
     const sessionToken = sessionTokenFromRequest(request);
     try {
@@ -170,6 +255,59 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
     clearSessionCookie(reply);
 
+    return reply.status(204).send();
+  });
+
+  app.delete("/auth/me", async (request, reply) => {
+    if (!(await requireAuth(request, reply))) {
+      return;
+    }
+
+    const parse = deleteAccountSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({ error: "Invalid payload", details: parse.error.flatten() });
+    }
+
+    const user = await app.prisma.user.findUnique({
+      where: {
+        id: request.user!.id
+      }
+    });
+
+    if (!user || !(await verifyPassword(parse.data.currentPassword, user.passwordHash))) {
+      return reply.status(401).send({ error: "Current password is incorrect" });
+    }
+
+    const billingAccounts = await app.prisma.billingAccount.findMany({
+      where: {
+        tenant: {
+          ownerUserId: user.id
+        },
+        stripeSubscriptionId: {
+          not: null
+        }
+      },
+      select: {
+        stripeSubscriptionId: true
+      }
+    });
+
+    const stripe = getStripeClient();
+    if (stripe) {
+      await Promise.all(
+        billingAccounts.map((account) =>
+          account.stripeSubscriptionId ? stripe.subscriptions.cancel(account.stripeSubscriptionId) : undefined
+        )
+      );
+    }
+
+    await app.prisma.user.delete({
+      where: {
+        id: user.id
+      }
+    });
+
+    clearSessionCookie(reply);
     return reply.status(204).send();
   });
 
@@ -201,7 +339,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     const tenantMemberships = await app.prisma.tenantMember.findMany({
       where: {
-        userId: user.id
+        userId: user.id,
+        tenant: {
+          planId: "studio"
+        }
       },
       orderBy: {
         createdAt: "asc"

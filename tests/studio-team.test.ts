@@ -190,6 +190,118 @@ describe("studio team invitations", () => {
     expect(pieceCreate.statusCode).toBe(201);
   }, 120_000);
 
+  it("revokes Studio member access after downgrading to Personal", async () => {
+    const context = await createOwnerWithTenant();
+    cleanup = async () => closeTestApp(context.app, context.prisma);
+
+    const studioCheckout = await context.app.inject({
+      method: "POST",
+      url: `/tenants/${context.tenantId}/billing/checkout-sessions`,
+      headers: {
+        cookie: context.ownerCookie
+      },
+      payload: {
+        targetPlanId: "studio",
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel"
+      }
+    });
+    expect(studioCheckout.statusCode).toBe(201);
+
+    await context.app.inject({
+      method: "POST",
+      url: `/tenants/${context.tenantId}/billing/checkout-sessions/${studioCheckout.json().checkoutSession.id}/complete`,
+      headers: {
+        cookie: context.ownerCookie
+      }
+    });
+
+    const invite = await context.app.inject({
+      method: "POST",
+      url: `/tenants/${context.tenantId}/team-invitations`,
+      headers: {
+        cookie: context.ownerCookie
+      },
+      payload: {
+        email: "downgraded-member@example.com"
+      }
+    });
+    expect(invite.statusCode).toBe(201);
+
+    const login = await context.app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: {
+        email: "downgraded-member@example.com",
+        password: invite.json().temporaryPassword,
+        acceptedLegal: true
+      }
+    });
+    const memberCookie = extractSessionCookie(login.headers["set-cookie"]);
+
+    const changePassword = await context.app.inject({
+      method: "POST",
+      url: "/auth/change-password",
+      headers: {
+        cookie: memberCookie
+      },
+      payload: {
+        currentPassword: invite.json().temporaryPassword,
+        newPassword: "MemberPass123!"
+      }
+    });
+    expect(changePassword.statusCode).toBe(200);
+
+    const personalCheckout = await context.app.inject({
+      method: "POST",
+      url: `/tenants/${context.tenantId}/billing/checkout-sessions`,
+      headers: {
+        cookie: context.ownerCookie
+      },
+      payload: {
+        targetPlanId: "personal",
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel"
+      }
+    });
+    expect(personalCheckout.statusCode).toBe(201);
+
+    const completeDowngrade = await context.app.inject({
+      method: "POST",
+      url: `/tenants/${context.tenantId}/billing/checkout-sessions/${personalCheckout.json().checkoutSession.id}/complete`,
+      headers: {
+        cookie: context.ownerCookie
+      }
+    });
+    expect(completeDowngrade.statusCode).toBe(200);
+    expect(completeDowngrade.json().tenant.planId).toBe("personal");
+
+    const memberTenantAccess = await context.app.inject({
+      method: "GET",
+      url: `/tenants/${context.tenantId}`,
+      headers: {
+        cookie: memberCookie
+      }
+    });
+    expect(memberTenantAccess.statusCode).toBe(404);
+
+    const memberProfile = await context.app.inject({
+      method: "GET",
+      url: "/auth/me",
+      headers: {
+        cookie: memberCookie
+      }
+    });
+    expect(memberProfile.statusCode).toBe(200);
+    expect(memberProfile.json().tenants).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: context.tenantId
+        })
+      ])
+    );
+  }, 120_000);
+
   it("sends a fresh temporary password for existing pending invite accounts", async () => {
     const context = await createOwnerWithTenant();
     cleanup = async () => closeTestApp(context.app, context.prisma);

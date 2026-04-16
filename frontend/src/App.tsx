@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import About from "./pages/About.tsx";
+import Account from "./pages/Account.tsx";
 import Blog from "./pages/Blog.tsx";
 import BlogPostPage from "./pages/BlogPost.tsx";
 import CookieNotice from "./pages/CookieNotice.tsx";
@@ -17,6 +18,7 @@ import Legal from "./pages/Legal.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import Onboarding from "./pages/Onboarding.tsx";
 import PrivacyPolicy from "./pages/PrivacyPolicy.tsx";
+import Pricing from "./pages/Pricing.tsx";
 import Settings from "./pages/Settings.tsx";
 import Start from "./pages/Start.tsx";
 import TermsOfService from "./pages/TermsOfService.tsx";
@@ -68,12 +70,14 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/help-center" element={<HelpCenter />} />
           <Route path="/about" element={<About />} />
+          <Route path="/account" element={<Account />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="/legal" element={<Legal />} />
           <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/legal/cookie-notice" element={<CookieNotice />} />
           <Route path="/legal/terms-of-service" element={<TermsOfService />} />
+          <Route path="/pricing" element={<Pricing />} />
           <Route path="/start" element={<Start />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/onboarding" element={<Onboarding />} />

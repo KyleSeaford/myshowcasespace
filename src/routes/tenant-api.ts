@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginAsync, FastifyRequest } from "fastif
 import { z } from "zod";
 import { sha256 } from "../lib/crypto.js";
 import { parseJson } from "../lib/json.js";
-import { isPaidPlanId } from "../lib/plans.js";
+import { isPaidPlanId, pieceLimitForPlanId } from "../lib/plans.js";
 import { parseTenantTheme, THEME_IDS } from "../lib/theme.js";
 
 const tenantCodeSchema = z.object({
@@ -35,9 +35,12 @@ function firstHeader(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
-function serializeTenantSite<T extends { socialLinks: string | null; theme: string | null; name: string }>(tenant: T) {
+function serializeTenantSite<
+  T extends { socialLinks: string | null; theme: string | null; name: string; planId: string; themeId: string }
+>(tenant: T) {
   return {
     ...tenant,
+    themeId: isPaidPlanId(tenant.planId) ? tenant.themeId : "default",
     socialLinks: parseJson<Record<string, string>>(tenant.socialLinks, {}),
     theme: parseTenantTheme(tenant.theme, tenant.name)
   };
@@ -249,6 +252,7 @@ export const tenantApiRoutes: FastifyPluginAsync = async (app) => {
         published: true
       },
       orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+      take: pieceLimitForPlanId(tenant.planId) ?? undefined,
       select: {
         id: true,
         title: true,
@@ -312,12 +316,17 @@ export const tenantApiRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(404).send({ error: "Published site not found" });
     }
 
+    if (domain.type === "CUSTOM" && !isPaidPlanId(domain.tenant.planId)) {
+      return reply.status(404).send({ error: "Published site not found" });
+    }
+
     const pieces = await app.prisma.piece.findMany({
       where: {
         tenantId: domain.tenant.id,
         published: true
       },
       orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+      take: pieceLimitForPlanId(domain.tenant.planId) ?? undefined,
       select: {
         title: true,
         slug: true,
@@ -372,6 +381,7 @@ export const tenantApiRoutes: FastifyPluginAsync = async (app) => {
         published: true
       },
       orderBy: [{ year: "desc" }, { createdAt: "desc" }],
+      take: pieceLimitForPlanId(tenant.planId) ?? undefined,
       select: {
         title: true,
         slug: true,
