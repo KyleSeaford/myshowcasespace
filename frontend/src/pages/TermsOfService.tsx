@@ -55,7 +55,7 @@ const sections = [
     title: "Copyright, trademarks, and takedowns",
     paragraphs: [
       "You must only upload material that you own or that you have clear permission to use. Do not upload copyrighted works, trademarks, images, text, video, music, designs, or other material that infringes another person's rights.",
-      "If you believe content on Rivo infringes your copyright or other intellectual property rights, contact hello@getrivo.net with enough detail for us to identify the material, review the complaint, and contact the affected user where appropriate.",
+      "If you believe content on Rivo infringes your copyright or other intellectual property rights, contact hello@tryrivo.org with enough detail for us to identify the material, review the complaint, and contact the affected user where appropriate.",
       "We may remove allegedly infringing content, disable access, issue warnings, or terminate repeat infringers. If we later publish designated copyright agent details or a formal complaint process, that process will apply in addition to these Terms."
     ]
   },
@@ -135,7 +135,7 @@ const sections = [
   {
     title: "Help and contact",
     paragraphs: [
-      "If you need help with these Terms, account issues, subscription cancellation, or a copyright complaint, email hello@getrivo.net."
+      "If you need help with these Terms, account issues, subscription cancellation, or a copyright complaint, email hello@tryrivo.org."
     ]
   }
 ] as const;

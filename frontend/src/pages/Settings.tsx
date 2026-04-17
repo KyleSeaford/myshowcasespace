@@ -612,7 +612,7 @@ const Settings = () => {
                               type="email"
                               value={inviteEmail}
                               onChange={(event) => setInviteEmail(event.target.value)}
-                              placeholder="collaborator@example.com"
+                              placeholder="hello@tryrivo.org"
                             />
                           </div>
                           <Button type="button" onClick={handleInviteMember} disabled={isInviting}>

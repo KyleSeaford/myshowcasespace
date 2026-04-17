@@ -486,7 +486,7 @@ const Onboarding = () => {
                         type="email"
                         value={form.contactEmail}
                         onChange={(event) => setForm((previous) => ({ ...previous, contactEmail: event.target.value }))}
-                        placeholder="studio@example.com"
+                        placeholder="hello@tryrivo.org"
                         required
                       />
                     </div>

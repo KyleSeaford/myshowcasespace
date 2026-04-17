@@ -176,7 +176,7 @@ const Start = () => {
                     onChange={(event) => setEmail(event.target.value)}
                     required
                     autoComplete="email"
-                    placeholder="you@example.com"
+                    placeholder="hello@tryrivo.org"
                   />
                 </div>
 

@@ -148,7 +148,7 @@ Recommended setup notes:
 
 After `npm run seed`:
 
-- Demo login: `demo@myshowcase.space` / `Password123!`
+- Demo login: `hello@tryrivo.org` / `Password123!`
 - Demo tenant code: `DEMOART123`
 - Demo tenant API key: `mssk_demo_seed_api_key_123456`
 

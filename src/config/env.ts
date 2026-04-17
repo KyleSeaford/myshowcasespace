@@ -20,7 +20,7 @@ const envSchema = z.object({
   STRIPE_PERSONAL_PRICE_ID: z.string().min(1).default("price_1TKcL32NVwwlVKa89CwfG2pm"),
   STRIPE_STUDIO_PRICE_ID: z.string().min(1).default("price_1TKcLk2NVwwlVKa8ihqv4zV8"),
   RESEND_API_KEY: optionalNonEmptyString,
-  EMAIL_FROM: z.string().min(1).default("Rivo <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().min(1).default("Rivo <hello@tryrivo.org>"),
   UPLOADTHING_TOKEN: optionalNonEmptyString,
   COOKIE_NAME: z.string().default("ms_session")
 });

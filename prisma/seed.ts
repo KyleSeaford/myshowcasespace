@@ -21,7 +21,7 @@ async function main(): Promise<void> {
     )
   );
 
-  const demoEmail = "demo@myshowcase.space";
+  const demoEmail = "hello@tryrivo.org";
   const passwordHash = await bcrypt.hash("Password123!", 12);
 
   const demoUser = await prisma.user.upsert({

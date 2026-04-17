@@ -11,7 +11,7 @@ const Footer = () => {
               A calm, premium portfolio platform for photographers, artists, students, and
               creative teams.
             </p>
-            <p className="text-sm text-muted-foreground font-light">hello@getrivo.net</p>
+            <p className="text-sm text-muted-foreground font-light">hello@tryrivo.org</p>
           </div>
 
           <div>

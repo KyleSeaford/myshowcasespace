@@ -53,7 +53,7 @@ const sections = [
     paragraphs: [
       "You can manage or block many cookies through your browser settings, content-blocking extensions, device controls, or privacy tools. You may also be able to clear local storage and similar browser-side data directly from your browser.",
       "If you block essential cookies or similar anti-abuse technologies, protected forms and account access features may fail. If we introduce a cookie banner or consent manager in the future, your choices there will apply in addition to your browser settings.",
-      "Questions about our use of cookies or similar technologies can be sent to hello@getrivo.net."
+      "Questions about our use of cookies or similar technologies can be sent to hello@tryrivo.org."
     ]
   },
   {

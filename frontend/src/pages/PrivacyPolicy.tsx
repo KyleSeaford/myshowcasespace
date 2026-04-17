@@ -65,7 +65,7 @@ const sections = [
     paragraphs: [
       "Depending on your location, you may have the right to request access to your personal data, correction of inaccurate data, deletion, restriction, portability, objection to certain processing, or withdrawal of consent where processing relies on consent.",
       "You may also be able to control some data use through your browser settings, device permissions, and cookie controls. If we rely on a third-party payment or anti-abuse provider, requests relating to those providers may also need to be directed to them or handled jointly with them depending on the circumstances.",
-      "You can contact us at hello@getrivo.net to request help with access, correction, deletion, or other privacy questions."
+      "You can contact us at hello@tryrivo.org to request help with access, correction, deletion, or other privacy questions."
     ]
   },
   {
